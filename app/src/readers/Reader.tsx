@@ -52,12 +52,30 @@ export default function Reader() {
     }
   }, [])
   const relocated = useRef(false)
+  const stageRef = useRef('')
   useEffect(() => {
     const t = setTimeout(() => {
-      if (!relocated.current) setError((cur) => cur ?? 'The book took too long to open.')
+      if (!relocated.current) setError((cur) => cur ?? `Timed out at: ${stageRef.current}`)
     }, 25000)
     return () => clearTimeout(t)
   }, [])
+
+  /* A book whose file never made it into storage: fetch it from the backup if there is one. */
+  const [fileMissing, setFileMissing] = useState(false)
+  useEffect(() => {
+    db.files.get(id).then(async (f) => {
+      if (f) return
+      setFileMissing(true)
+      const b = await db.books.get(id)
+      if (b?.backedUp && !downloading) {
+        setDownloading(true)
+        downloadBookFile(b)
+          .catch((e) => setError(describe(e)))
+          .finally(() => setDownloading(false))
+      } else if (b) setError('This book’s file isn’t stored on this iPhone. Remove it and import it again.')
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   /* initial location (deep link > saved progress) + mark opened */
   const [params] = useSearchParams()
@@ -267,6 +285,18 @@ export default function Reader() {
   const pct = Math.round((scrub ?? loc?.percent ?? 0) * 100)
   const Engine = book.format === 'pdf' ? PdfEngine : EpubEngine
   const ready = file && initial !== null
+  const stage = !file
+    ? fileMissing
+      ? book.backedUp
+        ? 'Downloading from your backup…'
+        : 'This book’s file is missing on this iPhone.'
+      : downloading
+        ? 'Downloading from your backup…'
+        : 'Reading book from storage…'
+    : initial === null
+      ? 'Restoring your place…'
+      : `Laying out pages… (${(file.blob.size / 1048576).toFixed(1)} MB)`
+  stageRef.current = stage
 
   return (
     <div className={`reader ${chrome ? 'chrome-on' : ''}`}>
@@ -289,7 +319,13 @@ export default function Reader() {
       ) : (
         <div className="center-msg">
           <div className="spinner" />
-          <p className="muted">{downloading ? 'Downloading from your backup…' : 'Opening…'}</p>
+          <p className="muted">{stage}</p>
+        </div>
+      )}
+      {ready && !loc && !error && (
+        <div className="center-msg reader-opening">
+          <div className="spinner" />
+          <p className="muted">{stage}</p>
         </div>
       )}
 

@@ -14,6 +14,26 @@ import Settings from './pages/Settings'
 const Search = lazy(() => import('./pages/Search'))
 const Reader = lazy(() => import('./readers/Reader'))
 
+/** Spinner that offers a reload if a code chunk never arrives. */
+function SlowLoad() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 12000)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <div className="center-msg">
+      <div className="spinner" />
+      <p className="muted">{slow ? 'The reader is taking a while to load.' : 'Loading reader…'}</p>
+      {slow && (
+        <button className="btn btn-secondary" onClick={() => window.location.reload()}>
+          Reload
+        </button>
+      )}
+    </div>
+  )
+}
+
 const OFFLINE_KEY = 'folio.offline'
 const TAB_ROUTES = ['/', '/reading', '/notes', '/settings']
 
@@ -68,7 +88,7 @@ export default function App() {
   return (
     <div className="app-frame">
       <ErrorBoundary key={pathname}>
-      <Suspense fallback={<div className="center-msg"><div className="spinner" /></div>}>
+      <Suspense fallback={<SlowLoad />}>
       <Routes>
         <Route path="/" element={<Library />} />
         <Route path="/search" element={<Search />} />

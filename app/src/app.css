@@ -1255,3 +1255,8 @@ mark {
   max-height: 30vh;
   overflow: auto;
 }
+.reader-opening {
+  z-index: 15;
+  background: var(--page);
+  pointer-events: none;
+}

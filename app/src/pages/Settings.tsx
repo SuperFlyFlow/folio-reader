@@ -223,7 +223,7 @@ export default function Settings({ session, onSignIn }: { session: Session | nul
         )}
       </div>
       <p className="caption" style={{ textAlign: 'center', margin: '8px 0 24px' }}>
-        Folio 1.0
+        Folio 1.0 · build {__BUILD__}
       </p>
 
       {picker === 'theme' && (
