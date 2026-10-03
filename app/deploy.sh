@@ -3,6 +3,7 @@
 set -e
 cd "$(dirname "$0")"
 BASE_PATH=/folio-reader/ npm run build
+rm -rf dist/__test               # local test books are never published
 cp dist/index.html dist/404.html   # deep links fall back to the app shell
 touch dist/.nojekyll
 cd dist
