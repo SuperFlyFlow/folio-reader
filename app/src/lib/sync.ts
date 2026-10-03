@@ -56,7 +56,7 @@ export async function backupBook(bookId: string) {
 export async function deleteBookEverywhere(book: Book) {
   await db.transaction('rw', [db.books, db.files, db.progress, db.annotations], async () => {
     await db.books.delete(book.id)
-    await db.files.delete(book.id)
+    await db.files.where('id').startsWith(book.id).delete() // the book and its derived text view
     await db.progress.delete(book.id)
     await db.annotations.where('bookId').equals(book.id).delete()
   })

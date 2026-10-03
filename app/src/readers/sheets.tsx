@@ -15,11 +15,41 @@ const THEMES: { key: ThemeChoice; label: string; bg: string; ink: string }[] = [
   { key: 'auto', label: 'Auto', bg: 'linear-gradient(135deg,#fff 50%,#1c1c1e 50%)', ink: '#8e8e93' },
 ]
 
-export function AppearanceSheet({ format, onClose }: { format: BookFormat; onClose: () => void }) {
+export function AppearanceSheet({
+  format,
+  pdfView,
+  onPdfView,
+  onClose,
+}: {
+  format: BookFormat
+  pdfView?: 'text' | 'pages'
+  onPdfView?: (v: 'text' | 'pages') => void
+  onClose: () => void
+}) {
   const s = useSettings()
   const epub = format === 'epub'
   return (
     <Sheet title="Appearance" onClose={onClose}>
+      {pdfView && onPdfView && (
+        <>
+          <Segmented
+            value={pdfView}
+            options={[
+              { value: 'text', label: 'Text' },
+              { value: 'pages', label: 'Original Pages' },
+            ]}
+            onChange={(v) => {
+              onPdfView(v)
+              onClose()
+            }}
+          />
+          <p className="caption" style={{ margin: '8px 4px 16px' }}>
+            {pdfView === 'text'
+              ? 'Reflowed to fit your screen and theme. Switch to Original Pages for diagrams and tables.'
+              : 'Exactly as printed. Switch to Text for easier reading on your phone.'}
+          </p>
+        </>
+      )}
       <div className="theme-swatches">
         {THEMES.map((t) => (
           <button key={t.key} className={`theme-swatch${s.theme === t.key ? ' on' : ''}`} onClick={() => setSettings({ theme: t.key })}>

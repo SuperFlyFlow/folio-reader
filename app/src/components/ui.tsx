@@ -1,7 +1,21 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import type { Book } from '../lib/db'
 import Icon from './Icon'
+
+/**
+ * Back that always lands somewhere: the previous screen if there is one in this session,
+ * otherwise the fallback. (Installed web apps have no browser back button, and a book opened
+ * right after launch or an update has no history to go back to.)
+ */
+export function useBack(fallback = '/') {
+  const navigate = useNavigate()
+  return () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (idx > 0) navigate(-1)
+    else navigate(fallback, { replace: true })
+  }
+}
 
 export function TabBar() {
   const tabs = [

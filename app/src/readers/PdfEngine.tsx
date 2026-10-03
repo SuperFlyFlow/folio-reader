@@ -419,7 +419,9 @@ function PdfPage({
     const layer = host.querySelector<HTMLElement>('.textLayer')
     if (!marks || !layer) return
     marks.replaceChildren()
-    const mine = annotations.filter((a) => a.type !== 'bookmark' && !a.deleted && pageOf(a.location) === n && a.text)
+    const mine = annotations.filter(
+      (a) => a.type !== 'bookmark' && !a.deleted && a.location.startsWith('page:') && pageOf(a.location) === n && a.text,
+    )
     if (!mine.length) return
     const nodes: { node: Text; start: number }[] = []
     let full = ''

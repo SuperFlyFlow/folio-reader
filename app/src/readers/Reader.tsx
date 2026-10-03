@@ -5,8 +5,9 @@ import { db, logReading, type Annotation, type HighlightColor } from '../lib/db'
 import { downloadBookFile, scheduleSync } from '../lib/sync'
 import { useSettings } from '../lib/settings'
 import { diag } from '../lib/diag'
+import { getReflow, hrefForPage, type ReflowMeta } from '../lib/reflow'
 import Icon from '../components/Icon'
-import { toast, formatDuration } from '../components/ui'
+import { toast, formatDuration, useBack } from '../components/ui'
 import EpubEngine from './EpubEngine'
 import PdfEngine from './PdfEngine'
 import { AppearanceSheet, ContentsSheet, NoteSheet, SearchSheet } from './sheets'
@@ -23,6 +24,7 @@ export default function Reader() {
   const book = useLiveQuery(() => db.books.get(id), [id])
   const file = useLiveQuery(() => db.files.get(id), [id])
   const [initial, setInitial] = useState<string | undefined | null>(null)
+  const initialPercent = useRef(0)
   const annotations = useLiveQuery(
     () => db.annotations.where('bookId').equals(id).filter((a) => !a.deleted).sortBy('createdAt'),
     [id],
@@ -38,6 +40,34 @@ export default function Reader() {
   const [downloading, setDownloading] = useState(false)
   const [scrub, setScrub] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const goBack = useBack()
+
+  /* PDFs read as reflowed text by default; "pages" shows the original layout. */
+  const textMode = book?.format === 'pdf' && (book.pdfView ?? 'text') === 'text'
+  const [reflow, setReflow] = useState<{ blob: Blob; meta: ReflowMeta } | null | undefined>(undefined)
+  const [reflowProgress, setReflowProgress] = useState<[number, number] | null>(null)
+  const lastActivity = useRef(Date.now())
+  useEffect(() => {
+    if (!textMode || !file || reflow !== undefined) return
+    let dead = false
+    getReflow(id, (d, t) => {
+      lastActivity.current = Date.now()
+      if (!dead) setReflowProgress([d, t])
+    })
+      .then((r) => {
+        if (dead) return
+        setReflow(r)
+        if (!r) {
+          void db.books.update(id, { pdfView: 'pages' })
+          toast('This PDF is scanned, so it opens as pages')
+        }
+      })
+      .catch((e) => !dead && setError(describe(e)))
+    return () => {
+      dead = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textMode, !!file, id])
 
   /* Surface anything that goes wrong while the book is open instead of leaving a blank page. */
   const describe = (e: unknown) =>
@@ -55,10 +85,11 @@ export default function Reader() {
   const relocated = useRef(false)
   const stageRef = useRef('')
   useEffect(() => {
-    const t = setTimeout(() => {
-      if (!relocated.current) setError((cur) => cur ?? `Timed out at: ${stageRef.current}`)
-    }, 25000)
-    return () => clearTimeout(t)
+    const iv = setInterval(() => {
+      if (!relocated.current && Date.now() - lastActivity.current > 25000)
+        setError((cur) => cur ?? `Timed out at: ${stageRef.current}`)
+    }, 2000)
+    return () => clearInterval(iv)
   }, [])
 
   /* Remote diagnostics: what happened while opening, readable from Supabase. */
@@ -106,7 +137,11 @@ export default function Reader() {
   useEffect(() => {
     const deep = params.get('loc')
     if (deep) setInitial(deep)
-    else db.progress.get(id).then((p) => setInitial(p?.location || undefined))
+    else
+      db.progress.get(id).then((p) => {
+        initialPercent.current = p?.percent ?? 0
+        setInitial(p?.location || undefined)
+      })
     db.books.update(id, { lastOpenedAt: Date.now() })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
@@ -140,7 +175,15 @@ export default function Reader() {
 
   /* hide chrome a moment after opening */
   useEffect(() => {
-    const t = setTimeout(() => setChrome(false), 1800)
+    const t = setTimeout(() => setChrome(false), 2600)
+    try {
+      if (!localStorage.getItem('folio.hint.controls')) {
+        localStorage.setItem('folio.hint.controls', '1')
+        setTimeout(() => toast('Tap the middle of the page for controls'), 2800)
+      }
+    } catch {
+      /* ignore */
+    }
     return () => clearTimeout(t)
   }, [])
 
@@ -295,6 +338,21 @@ export default function Reader() {
     }
   }
 
+  async function switchPdfView(view: 'text' | 'pages') {
+    if (!book || (book.pdfView ?? 'text') === view) return
+    const pages = book.totalPages || reflow?.meta.pages || 1
+    const pct = loc?.percent ?? initialPercent.current
+    const page = loc?.location.startsWith('page:')
+      ? Number(loc.location.slice(5))
+      : Math.min(pages, Math.round(pct * (pages - 1)) + 1)
+    initialPercent.current = pct
+    setInitial(`page:${page}`)
+    setLoc(null)
+    relocated.current = false
+    lastActivity.current = Date.now()
+    await db.books.update(id, { pdfView: view })
+  }
+
   if (book === undefined) return <div className="reader" />
   if (book === null)
     return (
@@ -308,8 +366,17 @@ export default function Reader() {
 
   const minutesLeft = loc?.pagesLeft !== undefined ? (loc.pagesLeft * pace.current) / 60 : undefined
   const pct = Math.round((scrub ?? loc?.percent ?? 0) * 100)
-  const Engine = book.format === 'pdf' ? PdfEngine : EpubEngine
-  const ready = file && initial !== null
+  const Engine = book.format === 'pdf' && !textMode ? PdfEngine : EpubEngine
+  const engineData = textMode ? reflow?.blob : file?.blob
+  // Locations are per view: CFIs in text, "page:N" in pages. Convert when they don't match.
+  let engineInitial = initial ?? undefined
+  if (book.format === 'pdf' && engineInitial) {
+    const pages = book.totalPages || reflow?.meta.pages || 1
+    if (textMode && engineInitial.startsWith('page:') && reflow) engineInitial = hrefForPage(reflow.meta, Number(engineInitial.slice(5)))
+    else if (!textMode && !engineInitial.startsWith('page:'))
+      engineInitial = `page:${Math.min(pages, Math.round(initialPercent.current * (pages - 1)) + 1)}`
+  }
+  const ready = !!engineData && engineData.size > 0 && initial !== null
   const stage = !file
     ? fileMissing
       ? book.backedUp
@@ -320,16 +387,21 @@ export default function Reader() {
         : 'Reading book from storage…'
     : initial === null
       ? 'Restoring your place…'
-      : `Laying out pages… (${(file.blob.size / 1048576).toFixed(1)} MB)`
+      : textMode && !reflow
+        ? reflowProgress
+          ? `Preparing text view… page ${reflowProgress[0]} of ${reflowProgress[1]}`
+          : 'Preparing text view…'
+        : `Laying out pages… (${(file.blob.size / 1048576).toFixed(1)} MB)`
   stageRef.current = stage
 
   return (
     <div className={`reader ${chrome ? 'chrome-on' : ''}`}>
       {ready ? (
         <Engine
+          key={textMode ? 'text' : 'pages'}
           ref={engine}
-          data={file.blob}
-          initialLocation={initial ?? undefined}
+          data={engineData!}
+          initialLocation={engineInitial}
           annotations={annotations}
           onReady={onReady}
           onRelocate={onRelocate}
@@ -356,7 +428,7 @@ export default function Reader() {
 
       {/* Top bar */}
       <header className="reader-top">
-        <button className="icon-btn" onClick={() => navigate(-1)} aria-label="Back to library">
+        <button className="icon-btn" onClick={goBack} aria-label="Back">
           <Icon name="back" size={24} stroke={2.2} />
         </button>
         <div className="reader-title">
@@ -409,7 +481,7 @@ export default function Reader() {
           <span className="caption">{loc?.pageLabel ?? ''}</span>
           <span className="caption">
             {minutesLeft !== undefined
-              ? `${formatDuration(minutesLeft)} left in ${book.format === 'pdf' ? 'book' : 'chapter'}`
+              ? `${formatDuration(minutesLeft)} left in ${book.format === 'pdf' && !textMode ? 'book' : 'chapter'}`
               : ''}
           </span>
         </div>
@@ -419,14 +491,21 @@ export default function Reader() {
       {!chrome && loc && (
         <div className="reader-quiet caption">
           {loc.pageLabel}
-          {minutesLeft !== undefined && ` · ${formatDuration(minutesLeft)} left in ${book.format === 'pdf' ? 'book' : 'chapter'}`}
+          {minutesLeft !== undefined && ` · ${formatDuration(minutesLeft)} left in ${book.format === 'pdf' && !textMode ? 'book' : 'chapter'}`}
         </div>
       )}
 
       {/* Selection menu */}
       {selection && <SelectionMenu sel={selection} onColor={highlight} onNote={() => highlight('yellow', true)} onCopy={copySelection} onShare={shareSelection} />}
 
-      {sheet === 'appearance' && <AppearanceSheet format={book.format} onClose={() => setSheet(null)} />}
+      {sheet === 'appearance' && (
+        <AppearanceSheet
+          format={textMode ? 'epub' : book.format}
+          pdfView={book.format === 'pdf' ? (book.pdfView ?? 'text') : undefined}
+          onPdfView={switchPdfView}
+          onClose={() => setSheet(null)}
+        />
+      )}
       {sheet === 'contents' && (
         <ContentsSheet
           toc={toc}

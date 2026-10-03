@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { db, type Book } from '../lib/db'
 import { ensureIndexed, searchText, type LibraryHit } from '../lib/fulltext'
 import Icon from '../components/Icon'
-import { Cover } from '../components/ui'
+import { Cover, useBack } from '../components/ui'
 
 interface Group {
   book: Book
@@ -12,6 +12,7 @@ interface Group {
 
 export default function Search() {
   const navigate = useNavigate()
+  const goBack = useBack()
   const [params, setParams] = useSearchParams()
   const [q, setQ] = useState(params.get('q') ?? '')
   const [groups, setGroups] = useState<Group[] | null>(null)
@@ -65,7 +66,7 @@ export default function Search() {
   return (
     <div className="screen" style={{ paddingBottom: 40 }}>
       <div className="nav-row" style={{ justifyContent: 'flex-start' }}>
-        <button className="nav-back" onClick={() => navigate(-1)}>
+        <button className="nav-back" onClick={goBack}>
           <Icon name="back" size={22} stroke={2.4} /> Library
         </button>
       </div>

@@ -60,6 +60,18 @@ function readerCss(s: Settings) {
   }
 }
 
+function sanitize(doc: Document) {
+  doc.querySelectorAll('script, iframe, object, embed').forEach((el) => el.remove())
+  doc.querySelectorAll('*').forEach((el) => {
+    for (const attr of Array.from(el.attributes)) {
+      const name = attr.name.toLowerCase()
+      if (name.startsWith('on')) el.removeAttribute(attr.name)
+      else if ((name === 'href' || name.endsWith(':href') || name === 'src') && /^\s*javascript:/i.test(attr.value))
+        el.removeAttribute(attr.name)
+    }
+  })
+}
+
 const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(props, ref) {
   const settings = useSettings()
   const hostRef = useRef<HTMLDivElement>(null)
@@ -153,13 +165,25 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
       if (cancelled) return
       const book: AnyBook = ePub(buf)
       bookRef.current = book
+      await book.opened
+      if (cancelled) return
+      // Pages render with scripts allowed (iOS Safari won't deliver taps to our listeners otherwise),
+      // so make sure the book itself can't run any: strip scripts, inline handlers and js: links.
+      const request = book.archive?.request?.bind(book.archive)
+      if (request) {
+        book.archive.request = async (url: string, type?: string) => {
+          const res = await request(url, type)
+          if (res && typeof (res as Document).querySelectorAll === 'function') sanitize(res as Document)
+          return res
+        }
+      }
       const s = settingsRef.current
       const rendition: AnyRendition = book.renderTo(host, {
         width: '100%',
         height: '100%',
         flow: s.pageTurn === 'scroll' ? 'scrolled-doc' : 'paginated',
         spread: 'none',
-        allowScriptedContent: false,
+        allowScriptedContent: true,
       })
       rendRef.current = rendition
       rendition.themes.default(readerCss(s))
@@ -258,7 +282,9 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
     const r = rendRef.current
     if (!r) return
     const wanted = new Map(
-      propsRef.current.annotations.filter((a) => a.type !== 'bookmark' && !a.deleted).map((a) => [a.id, a]),
+      propsRef.current.annotations
+        .filter((a) => a.type !== 'bookmark' && !a.deleted && a.location.startsWith('epubcfi'))
+        .map((a) => [a.id, a]),
     )
     for (const [id, cfi] of drawn.current) {
       const a = wanted.get(id)
@@ -369,7 +395,18 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
 
   const margin = settings.margin
   return (
-    <div className="engine epub-engine" style={{ paddingLeft: margin, paddingRight: margin }}>
+    <div
+      className="engine epub-engine"
+      style={{ paddingLeft: margin, paddingRight: margin }}
+      onClick={(e) => {
+        // Taps on the side margins land outside the book's frame; treat them like page-edge taps.
+        if (e.target !== e.currentTarget) return
+        const r = e.currentTarget.getBoundingClientRect()
+        const zone = (e.clientX - r.left) / r.width
+        if (settings.pageTurn === 'scroll' || (zone > 0.3 && zone < 0.7)) propsRef.current.onTapCenter()
+        else animateTurn(zone >= 0.7 ? 1 : -1)
+      }}
+    >
       <div ref={stageRef} className="epub-stage">
         <div ref={hostRef} className="epub-host" />
       </div>

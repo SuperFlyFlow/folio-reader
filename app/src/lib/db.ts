@@ -17,11 +17,15 @@ export interface Book {
   backedUp: boolean
   /** false for books restored from the cloud whose file is not downloaded yet */
   hasFile: boolean
+  /** PDFs only: read as reflowed text (default) or as the original pages */
+  pdfView?: 'text' | 'pages'
 }
 
 export interface BookFile {
   id: string
   blob: Blob
+  /** extra data for derived files (e.g. the PDF text view's page map) */
+  meta?: unknown
 }
 
 export interface Progress {

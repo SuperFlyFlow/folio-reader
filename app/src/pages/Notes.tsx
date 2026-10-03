@@ -4,11 +4,11 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Annotation, type Book } from '../lib/db'
 import { highlightsMarkdown, shareMarkdown } from '../lib/export'
 import Icon from '../components/Icon'
-import { Segmented, toast } from '../components/ui'
+import { Segmented, toast, useBack } from '../components/ui'
 import { HL_RGB } from '../readers/types'
 
 export default function Notes() {
-  const navigate = useNavigate()
+  const goBack = useBack()
   const [params, setParams] = useSearchParams()
   const bookFilter = params.get('book')
   const typeFilter = params.get('type') === 'bookmark' ? 'bookmark' : 'highlights'
@@ -52,7 +52,7 @@ export default function Notes() {
     <div className="screen" style={isTab ? undefined : { paddingBottom: 40 }}>
       <div className="nav-row" style={{ justifyContent: isTab ? 'flex-end' : 'space-between' }}>
         {!isTab && (
-          <button className="nav-back" onClick={() => navigate(-1)}>
+          <button className="nav-back" onClick={goBack}>
             <Icon name="back" size={22} stroke={2.4} /> Back
           </button>
         )}

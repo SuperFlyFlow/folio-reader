@@ -6,11 +6,12 @@ import { deleteBookEverywhere, MAX_BACKUP_BYTES } from '../lib/sync'
 import { highlightsMarkdown, shareMarkdown } from '../lib/export'
 import { getSettings } from '../lib/settings'
 import Icon from '../components/Icon'
-import { Cover, Sheet, formatBytes, formatDuration, toast } from '../components/ui'
+import { Cover, Sheet, formatBytes, formatDuration, toast, useBack } from '../components/ui'
 
 export default function BookDetails() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
+  const goBack = useBack()
   const book = useLiveQuery(() => db.books.get(id), [id])
   const progress = useLiveQuery(() => db.progress.get(id), [id])
   const counts = useLiveQuery(async () => {
@@ -36,7 +37,7 @@ export default function BookDetails() {
   return (
     <div className="screen detail-screen" style={{ paddingBottom: 40 }}>
       <div className="nav-row" style={{ justifyContent: 'space-between' }}>
-        <button className="nav-back" onClick={() => navigate(-1)}>
+        <button className="nav-back" onClick={goBack}>
           <Icon name="back" size={22} stroke={2.4} /> Library
         </button>
       </div>
