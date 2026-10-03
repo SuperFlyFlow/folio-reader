@@ -1,10 +1,12 @@
+// Polyfill must evaluate before pdf.js (see streamPolyfill.ts).
+import './streamPolyfill'
 // The legacy build polyfills very new JavaScript APIs (e.g. Map.prototype.getOrInsertComputed)
-// that iOS Safari doesn't ship yet; the modern build fails to open PDFs on iPhone.
+// that iOS Safari doesn't ship yet.
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
+// Our own worker entry, so the worker gets the same polyfill.
+pdfjs.GlobalWorkerOptions.workerPort = new Worker(new URL('./pdfWorker.ts', import.meta.url), { type: 'module' })
 
 export { pdfjs }
 

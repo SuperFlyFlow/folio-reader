@@ -301,6 +301,7 @@ function PdfPage({
   const boxRef = useRef<HTMLDivElement>(null)
   const [box, setBox] = useState({ w: 0, h: 0 })
   const [rendered, setRendered] = useState(false)
+  const [textReady, setTextReady] = useState(0)
   const [pageAspect, setPageAspect] = useState(aspect)
   const [cropBox, setCropBox] = useState<Crop | null>(null)
 
@@ -374,21 +375,28 @@ function PdfPage({
       task = page.render({ canvas, viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined })
       await task.promise
       if (dead) return
-      const layer = document.createElement('div')
-      layer.className = 'textLayer'
-      layer.style.setProperty('--total-scale-factor', String(scale))
-      layer.style.setProperty('--scale-round-x', '1px')
-      layer.style.setProperty('--scale-round-y', '1px')
-      const tl = new pdfjs.TextLayer({ textContentSource: await page.getTextContent(), container: layer, viewport: vp })
-      await tl.render()
-      if (dead) return
+      // Show the page as soon as it's drawn; selectable text is layered on afterwards.
       const marks = document.createElement('div')
       marks.className = 'pdf-marks'
-      host.replaceChildren(canvas, marks, layer)
+      host.replaceChildren(canvas, marks)
       setRendered(true)
       if (!firstRenderLogged) {
         firstRenderLogged = true
         diag('pdf-first-render', { page: n, w: canvas.width, h: canvas.height })
+      }
+      try {
+        const layer = document.createElement('div')
+        layer.className = 'textLayer'
+        layer.style.setProperty('--total-scale-factor', String(scale))
+        layer.style.setProperty('--scale-round-x', '1px')
+        layer.style.setProperty('--scale-round-y', '1px')
+        const tl = new pdfjs.TextLayer({ textContentSource: await page.getTextContent(), container: layer, viewport: vp })
+        await tl.render()
+        if (dead) return
+        host.appendChild(layer)
+        setTextReady((k) => k + 1)
+      } catch (e) {
+        if (!dead) diag('pdf-text-layer-error', { page: n, error: errText(e) })
       }
     })().catch((e) => {
       if (!dead && e?.name !== 'RenderingCancelledException') {
@@ -459,7 +467,7 @@ function PdfPage({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [annotations, rendered, n, Math.round(fullW)])
+  }, [annotations, rendered, textReady, n, Math.round(fullW)])
 
   return (
     <div ref={slideRef} className={`pdf-slide${zoomed ? ' zoomed' : ''}`} data-page={n} style={paged ? undefined : { height: dispH + gutter }}>
