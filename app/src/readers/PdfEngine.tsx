@@ -1,8 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist'
 import { openPdf, pdfjs, type OpenPdf } from '../lib/pdf'
+import { diag, errText } from '../lib/diag'
 import { resolvedTheme, useSettings } from '../lib/settings'
 import { HL_RGB, type EngineHandle, type EngineProps, type SearchHit, type TocItem } from './types'
+
+let firstRenderLogged = false
 
 const pageOf = (loc?: string) => Math.max(1, parseInt((loc || 'page:1').split(':')[1] || '1', 10) || 1)
 
@@ -59,7 +62,11 @@ const PdfEngine = forwardRef<EngineHandle, EngineProps>(function PdfEngine(props
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const doc = await openPdf(await props.data.arrayBuffer())
+      const t0 = Date.now()
+      const buf = await props.data.arrayBuffer()
+      diag('pdf-read-file', { bytes: buf.byteLength, ms: Date.now() - t0 })
+      const doc = await openPdf(buf)
+      diag('pdf-parsed', { pages: doc.numPages, ms: Date.now() - t0 })
       if (cancelled) return void doc.close()
       docRef.current = doc
       const first = await doc.getPage(1)
@@ -379,8 +386,15 @@ function PdfPage({
       marks.className = 'pdf-marks'
       host.replaceChildren(canvas, marks, layer)
       setRendered(true)
+      if (!firstRenderLogged) {
+        firstRenderLogged = true
+        diag('pdf-first-render', { page: n, w: canvas.width, h: canvas.height })
+      }
     })().catch((e) => {
-      if (!dead && e?.name !== 'RenderingCancelledException') console.warn('pdf render', e)
+      if (!dead && e?.name !== 'RenderingCancelledException') {
+        console.warn('pdf render', e)
+        diag('pdf-render-error', { page: n, error: errText(e) })
+      }
     })
     return () => {
       dead = true

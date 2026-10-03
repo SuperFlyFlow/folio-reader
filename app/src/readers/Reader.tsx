@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, logReading, type Annotation, type HighlightColor } from '../lib/db'
 import { downloadBookFile, scheduleSync } from '../lib/sync'
 import { useSettings } from '../lib/settings'
+import { diag } from '../lib/diag'
 import Icon from '../components/Icon'
 import { toast, formatDuration } from '../components/ui'
 import EpubEngine from './EpubEngine'
@@ -59,6 +60,29 @@ export default function Reader() {
     }, 25000)
     return () => clearTimeout(t)
   }, [])
+
+  /* Remote diagnostics: what happened while opening, readable from Supabase. */
+  const openedAt = useRef(Date.now())
+  useEffect(() => {
+    const snap = (t: number) => () =>
+      diag('reader-snapshot', {
+        t,
+        bookId: id,
+        stage: stageRef.current,
+        relocated: relocated.current,
+        slides: document.querySelectorAll('.pdf-slide').length,
+        canvases: document.querySelectorAll('.pdf-canvas').length,
+        shimmering: document.querySelectorAll('.pdf-loading').length,
+        epubFrames: document.querySelectorAll('.epub-host iframe').length,
+        quiet: document.querySelector('.reader-quiet')?.textContent ?? null,
+        visibleError: document.querySelector('.reader-error-detail')?.textContent ?? null,
+      })
+    const timers = [3000, 10000, 30000].map((t) => setTimeout(snap(t), t))
+    return () => timers.forEach(clearTimeout)
+  }, [id])
+  useEffect(() => {
+    if (error) diag('reader-error', { bookId: id, error, stage: stageRef.current, t: Date.now() - openedAt.current })
+  }, [error, id])
 
   /* A book whose file never made it into storage: fetch it from the backup if there is one. */
   const [fileMissing, setFileMissing] = useState(false)
@@ -183,6 +207,7 @@ export default function Reader() {
           /* ignore */
         }
       }
+      if (!relocated.current) diag('reader-relocated', { bookId: id, t: now - openedAt.current, label: r.pageLabel })
       relocated.current = true
       setLoc(r)
       setSelection(null)
