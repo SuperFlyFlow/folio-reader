@@ -6,9 +6,12 @@ import './app.css'
 import App from './App'
 import { applyTheme } from './lib/settings'
 import { requestPersistence } from './lib/db'
+import { ensureLatest } from './lib/update'
 
 applyTheme()
 void requestPersistence()
+void ensureLatest()
+document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && void ensureLatest())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
