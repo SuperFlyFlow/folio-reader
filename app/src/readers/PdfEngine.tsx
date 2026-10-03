@@ -67,7 +67,7 @@ const PdfEngine = forwardRef<EngineHandle, EngineProps>(function PdfEngine(props
       setAspects(Array(doc.numPages).fill(vp.height / vp.width))
       setNumPages(doc.numPages)
       propsRef.current.onReady(await readOutline(doc))
-    })()
+    })().catch((e) => !cancelled && propsRef.current.onError(e))
     return () => {
       cancelled = true
       void docRef.current?.close()

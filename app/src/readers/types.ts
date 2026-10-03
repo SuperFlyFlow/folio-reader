@@ -48,6 +48,7 @@ export interface EngineProps {
   onSelect(s: Selection | null): void
   onTapCenter(): void
   onHighlightTap(id: string): void
+  onError(error: unknown): void
 }
 
 export const HL_COLORS: HighlightColor[] = ['yellow', 'green', 'blue', 'pink']

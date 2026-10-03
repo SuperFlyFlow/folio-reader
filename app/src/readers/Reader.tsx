@@ -36,6 +36,28 @@ export default function Reader() {
   const [noteFor, setNoteFor] = useState<string | null>(null)
   const [downloading, setDownloading] = useState(false)
   const [scrub, setScrub] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  /* Surface anything that goes wrong while the book is open instead of leaving a blank page. */
+  const describe = (e: unknown) =>
+    e instanceof Error ? `${e.name}: ${e.message}` : typeof e === 'string' ? e : JSON.stringify(e)
+  useEffect(() => {
+    const onRejection = (ev: PromiseRejectionEvent) => setError((cur) => cur ?? describe(ev.reason))
+    const onErr = (ev: ErrorEvent) => setError((cur) => cur ?? describe(ev.error ?? ev.message))
+    window.addEventListener('unhandledrejection', onRejection)
+    window.addEventListener('error', onErr)
+    return () => {
+      window.removeEventListener('unhandledrejection', onRejection)
+      window.removeEventListener('error', onErr)
+    }
+  }, [])
+  const relocated = useRef(false)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!relocated.current) setError((cur) => cur ?? 'The book took too long to open.')
+    }, 25000)
+    return () => clearTimeout(t)
+  }, [])
 
   /* initial location (deep link > saved progress) + mark opened */
   const [params] = useSearchParams()
@@ -143,6 +165,7 @@ export default function Reader() {
           /* ignore */
         }
       }
+      relocated.current = true
       setLoc(r)
       setSelection(null)
       void db.progress.put({ bookId: id, location: r.location, percent: r.percent, chapter: r.chapter, updatedAt: now, dirty: 1 })
@@ -261,6 +284,7 @@ export default function Reader() {
           }}
           onTapCenter={() => setChrome((c) => !c)}
           onHighlightTap={(hid) => setNoteFor(hid)}
+          onError={(e) => setError(describe(e))}
         />
       ) : (
         <div className="center-msg">
@@ -367,6 +391,28 @@ export default function Reader() {
         />
       )}
       {noteFor && <NoteSheet id={noteFor} onClose={() => setNoteFor(null)} />}
+
+      {error && !relocated.current && (
+        <div className="reader-error">
+          <h2>Couldn’t open this book</h2>
+          <p className="muted">
+            {book.format.toUpperCase()} · {navigator.userAgent.match(/OS (\d+[_\d]*)/)?.[1]?.replace(/_/g, '.') ?? 'unknown iOS'}
+          </p>
+          <pre className="reader-error-detail">{error}</pre>
+          <button
+            className="btn btn-secondary btn-block"
+            onClick={() => {
+              void navigator.clipboard?.writeText(`${book.format} | ${navigator.userAgent} | ${error}`)
+              toast('Details copied')
+            }}
+          >
+            Copy Details
+          </button>
+          <button className="btn btn-primary btn-block" onClick={() => navigate('/')}>
+            Back to Library
+          </button>
+        </div>
+      )}
     </div>
   )
 }

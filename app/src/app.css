@@ -1224,3 +1224,34 @@ mark {
   background: var(--success);
   vertical-align: 1px;
 }
+.reader-error {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  padding: calc(var(--safe-top) + 24px) 28px calc(var(--safe-bottom) + 24px);
+  background: var(--bg);
+  text-align: center;
+}
+.reader-error h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.reader-error p {
+  margin: 0;
+}
+.reader-error-detail {
+  margin: 4px 0 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--fill);
+  font-size: 12px;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 30vh;
+  overflow: auto;
+}

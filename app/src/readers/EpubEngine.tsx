@@ -229,7 +229,7 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
         }
       }
       if (!cancelled && rendition.location) rendition.emit('relocated', rendition.location)
-    })()
+    })().catch((e) => !cancelled && propsRef.current.onError(e))
 
     return () => {
       cancelled = true
