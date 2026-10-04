@@ -98,9 +98,9 @@ export function AppearanceSheet({
           <Segmented
             value={String(s.lineHeight)}
             options={[
-              { value: '1.4', label: 'Compact' },
+              { value: '1.45', label: 'Compact' },
               { value: '1.6', label: 'Normal' },
-              { value: '1.85', label: 'Relaxed' },
+              { value: '1.8', label: 'Relaxed' },
             ]}
             onChange={(v) => setSettings({ lineHeight: Number(v) })}
           />
@@ -108,9 +108,9 @@ export function AppearanceSheet({
           <Segmented
             value={String(s.margin)}
             options={[
-              { value: '12', label: 'Narrow' },
-              { value: '24', label: 'Normal' },
-              { value: '40', label: 'Wide' },
+              { value: '20', label: 'Narrow' },
+              { value: '30', label: 'Normal' },
+              { value: '42', label: 'Wide' },
             ]}
             onChange={(v) => setSettings({ margin: Number(v) })}
           />

@@ -51,7 +51,7 @@ function readerCss(s: Settings) {
     ...(s.publisherStyles
       ? {}
       : {
-          h1: { 'font-size': '1.6em !important', margin: '0.4em 0 1em !important' },
+          h1: { 'font-size': '1.6em !important' },
           h2: { 'font-size': '1.25em !important' },
         }),
     a: { color: `${t.link} !important`, 'text-decoration': 'none' },
@@ -80,13 +80,15 @@ function readerCss(s: Settings) {
             'margin-left': '0 !important',
             'margin-right': '0 !important',
             'margin-top': '0 !important',
-            'margin-bottom': '0.75em !important',
+            'margin-bottom': '0.85em !important',
             'text-indent': '0 !important',
             'padding-left': '0 !important',
             'padding-right': '0 !important',
           },
           blockquote: { margin: '0.9em 0 0.9em 1em !important', padding: '0 !important' },
-          'h1, h2, h3, h4, h5, h6': { 'margin-top': '0.5em !important', 'margin-bottom': '0.6em !important' },
+          'h1, h2, h3, h4, h5, h6': { 'margin-top': '0.5em !important', 'margin-bottom': '0.8em !important' },
+          // Chapter openings start part-way down the page, like a printed book.
+          'h1, h2': { 'margin-top': '1.8em !important' },
           'h3, h4, h5, h6': { 'font-size': '1.08em !important' },
         }),
     '::selection': { background: t.sel },
@@ -224,7 +226,7 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
       })
       rendRef.current = rendition
       rendition.themes.default(readerCss(s))
-      rendition.themes.fontSize(`${Math.round(s.fontSize * 1.12)}%`)
+      rendition.themes.fontSize(`${Math.round(s.fontSize * 1.19)}%`)
 
       rendition.hooks.content.register((contents: any) => attachGestures(contents))
 
@@ -314,7 +316,7 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
     const r = rendRef.current
     if (!r) return
     r.themes.default(readerCss(settings))
-    r.themes.fontSize(`${Math.round(settings.fontSize * 1.12)}%`)
+    r.themes.fontSize(`${Math.round(settings.fontSize * 1.19)}%`)
     // Re-apply to already-rendered sections.
     r.getContents?.().forEach((c: any) => {
       c.addStylesheetRules?.(readerCss(settings))

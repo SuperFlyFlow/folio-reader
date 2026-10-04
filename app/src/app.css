@@ -432,9 +432,9 @@ mark {
 }
 .engine {
   position: absolute;
-  /* Immersive: text starts just under the status bar; the top bar slides over it when shown. */
-  top: calc(var(--safe-top) + 14px);
-  bottom: calc(var(--safe-bottom) + 30px);
+  /* A calm frame like a printed page: running chapter title above, page info below. */
+  top: calc(var(--safe-top) + 40px);
+  bottom: calc(var(--safe-bottom) + 40px);
   left: 0;
   right: 0;
 }
@@ -516,9 +516,24 @@ mark {
   justify-content: space-between;
   gap: 12px;
 }
+.reader-running {
+  position: absolute;
+  top: calc(var(--safe-top) + 12px);
+  left: 48px;
+  right: 48px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--label-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
 .reader-quiet {
   position: absolute;
-  bottom: calc(var(--safe-bottom) + 8px);
+  bottom: calc(var(--safe-bottom) + 12px);
   left: 0;
   right: 0;
   text-align: center;

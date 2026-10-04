@@ -26,7 +26,7 @@ const DEFAULTS: Settings = {
   font: 'serif',
   fontSize: 100,
   lineHeight: 1.6,
-  margin: 24,
+  margin: 30,
   justify: true,
   publisherStyles: false,
   pageTurn: 'slide',
@@ -41,7 +41,13 @@ const listeners = new Set<() => void>()
 
 function load(): Settings {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }
+    const saved = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') } as Settings
+    // Roomier, Apple Books–like presets (v2): carry older choices over to their new values.
+    const margins: Record<number, number> = { 12: 20, 24: 30, 40: 42 }
+    const spacing: Record<number, number> = { 1.4: 1.45, 1.85: 1.8 }
+    saved.margin = margins[saved.margin] ?? saved.margin
+    saved.lineHeight = spacing[saved.lineHeight] ?? saved.lineHeight
+    return saved
   } catch {
     return DEFAULTS
   }

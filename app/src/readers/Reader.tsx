@@ -487,7 +487,8 @@ export default function Reader() {
         </div>
       </footer>
 
-      {/* Quiet footer when chrome is hidden */}
+      {/* Running chapter title + quiet footer when chrome is hidden */}
+      {!chrome && loc && <div className="reader-running">{loc.chapter || book.title}</div>}
       {!chrome && loc && (
         <div className="reader-quiet caption">
           {loc.pageLabel}
