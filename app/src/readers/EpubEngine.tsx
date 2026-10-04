@@ -55,6 +55,40 @@ function readerCss(s: Settings) {
           h2: { 'font-size': '1.25em !important' },
         }),
     a: { color: `${t.link} !important`, 'text-decoration': 'none' },
+    ...(s.publisherStyles
+      ? {}
+      : {
+          // Margins come from the reader (column gap), not the book.
+          body: {
+            color: `${t.ink} !important`,
+            background: `${t.bg} !important`,
+            'font-family': `${font} !important`,
+            'line-height': `${s.lineHeight} !important`,
+            'text-align': s.justify ? 'justify !important' : 'start !important',
+            margin: '0 !important',
+            padding: '0 !important',
+            hyphens: s.justify ? 'auto' : 'manual',
+            '-webkit-hyphens': s.justify ? 'auto' : 'manual',
+            'text-rendering': 'optimizeLegibility',
+            '-webkit-font-smoothing': 'antialiased',
+            '-webkit-touch-callout': 'none',
+          },
+          // One consistent text size: books often shrink whole sections (12–14px on a phone).
+          'p, div, li, blockquote, dd, dt, td, th, section, article': { 'font-size': '1em !important' },
+          // Clean, phone-friendly paragraphs: no hanging indents or deep side margins.
+          p: {
+            'margin-left': '0 !important',
+            'margin-right': '0 !important',
+            'margin-top': '0 !important',
+            'margin-bottom': '0.75em !important',
+            'text-indent': '0 !important',
+            'padding-left': '0 !important',
+            'padding-right': '0 !important',
+          },
+          blockquote: { margin: '0.9em 0 0.9em 1em !important', padding: '0 !important' },
+          'h1, h2, h3, h4, h5, h6': { 'margin-top': '0.5em !important', 'margin-bottom': '0.6em !important' },
+          'h3, h4, h5, h6': { 'font-size': '1.08em !important' },
+        }),
     '::selection': { background: t.sel },
     img: { 'max-width': '100% !important', height: 'auto !important' },
   }
@@ -83,6 +117,8 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
   propsRef.current = props
   const drawn = useRef(new Map<string, string>()) // annotation id -> cfi
   const animating = useRef(false)
+  /** Where the reader is now, so re-layouts (margins, page-turn mode) keep your place. */
+  const currentCfi = useRef<string | undefined>(undefined)
   const settingsRef = useRef(settings)
   settingsRef.current = settings
 
@@ -183,16 +219,18 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
         height: '100%',
         flow: s.pageTurn === 'scroll' ? 'scrolled-doc' : 'paginated',
         spread: 'none',
+        gap: s.margin * 2, // page margins; replaces epub.js's own ~1/12-width gap
         allowScriptedContent: true,
       })
       rendRef.current = rendition
       rendition.themes.default(readerCss(s))
-      rendition.themes.fontSize(`${s.fontSize}%`)
+      rendition.themes.fontSize(`${Math.round(s.fontSize * 1.12)}%`)
 
       rendition.hooks.content.register((contents: any) => attachGestures(contents))
 
       rendition.on('relocated', (loc: any) => {
         const cfi = loc.start.cfi
+        currentCfi.current = cfi
         const percent = book.locations.length() ? book.locations.percentageFromCfi(cfi) : (loc.start.percentage ?? 0)
         const page = loc.start.displayed?.page ?? 1
         const total = loc.start.displayed?.total ?? 1
@@ -233,7 +271,7 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
       propsRef.current.onReady(flat)
 
       // First open: skip a cover-only first page (e.g. Project Gutenberg's) and start at the title page.
-      let start: string | undefined = props.initialLocation || undefined
+      let start: string | undefined = currentCfi.current || props.initialLocation || undefined
       if (!start) {
         const first = book.spine.get(0)
         if (first && /cover/i.test(`${first.href ?? ''} ${first.idref ?? ''}`) && book.spine.get(1)) start = book.spine.get(1).href
@@ -269,14 +307,14 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
       drawn.current.clear()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.data, settings.pageTurn])
+  }, [props.data, settings.pageTurn, settings.margin])
 
   /* ---------- live appearance changes ---------- */
   useEffect(() => {
     const r = rendRef.current
     if (!r) return
     r.themes.default(readerCss(settings))
-    r.themes.fontSize(`${settings.fontSize}%`)
+    r.themes.fontSize(`${Math.round(settings.fontSize * 1.12)}%`)
     // Re-apply to already-rendered sections.
     r.getContents?.().forEach((c: any) => {
       c.addStylesheetRules?.(readerCss(settings))
@@ -403,7 +441,7 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
   return (
     <div
       className="engine epub-engine"
-      style={{ paddingLeft: margin, paddingRight: margin }}
+      style={settings.pageTurn === 'scroll' ? { paddingLeft: margin, paddingRight: margin } : undefined}
       onClick={(e) => {
         // Taps on the side margins land outside the book's frame; treat them like page-edge taps.
         if (e.target !== e.currentTarget) return

@@ -432,7 +432,8 @@ mark {
 }
 .engine {
   position: absolute;
-  top: calc(var(--safe-top) + 44px);
+  /* Immersive: text starts just under the status bar; the top bar slides over it when shown. */
+  top: calc(var(--safe-top) + 14px);
   bottom: calc(var(--safe-bottom) + 30px);
   left: 0;
   right: 0;
