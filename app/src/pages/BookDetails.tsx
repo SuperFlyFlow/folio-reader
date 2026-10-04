@@ -232,7 +232,7 @@ export default function BookDetails() {
         <button
           className="row no-icon"
           onClick={async () => {
-            await db.books.update(id, isArticle ? { kind: 'book' } : { kind: 'article', article: book.article ?? {}, pdfView: book.format === 'pdf' ? 'pages' : book.pdfView })
+            await db.books.update(id, isArticle ? { kind: 'book' } : { kind: 'article', article: book.article ?? {} })
             await saveMeta()
             toast(isArticle ? 'Moved to Books' : 'Moved to Articles')
           }}

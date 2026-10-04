@@ -119,7 +119,7 @@ export async function importFiles(
       kind,
       ...(kind === 'article'
         ? {
-            pdfView: 'pages' as const, // figures, equations and two-column layouts read best as printed
+            pdfView: 'text' as const, // readable on a phone; Original Pages is one tap away for figures
             article: (({ title: _t, ...rest }) => rest)(article ?? {}),
           }
         : {}),

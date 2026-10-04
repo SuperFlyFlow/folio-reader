@@ -181,7 +181,7 @@ async function pullRemote() {
       backedUp: !!r.file_path,
       hasFile: false,
       kind: r.kind ?? 'book',
-      ...(r.kind === 'article' ? { article: r.meta ?? {}, pdfView: 'pages' as const } : {}),
+      ...(r.kind === 'article' ? { article: r.meta ?? {} } : {}),
     })
   }
   const { data: progress } = await supabase.from('reading_progress').select('*')

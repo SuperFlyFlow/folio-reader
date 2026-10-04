@@ -11,6 +11,7 @@ import { CLASSICS, classicCover } from './classics'
  */
 export async function repairCovers() {
   await applyClassicCovers()
+  await articlesToTextView()
   const legacy = await db.books
     .filter((b) => !!b.cover || (b.format === 'pdf' && !b.coverBytes && b.hasFile))
     .toArray()
@@ -67,5 +68,16 @@ async function applyClassicCovers() {
     } catch {
       /* offline: try again next launch */
     }
+  }
+}
+
+/** Articles used to default to Original Pages, which is unreadably small on a phone. */
+async function articlesToTextView() {
+  try {
+    if (localStorage.getItem('folio.articlesText') === '1') return
+    await db.books.filter((b) => b.kind === 'article' && b.pdfView === 'pages').modify({ pdfView: 'text' })
+    localStorage.setItem('folio.articlesText', '1')
+  } catch {
+    /* storage unavailable: try again next launch */
   }
 }

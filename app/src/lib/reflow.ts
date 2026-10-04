@@ -14,7 +14,7 @@ export interface ReflowMeta {
   sections: { href: string; startPage: number; title: string }[]
 }
 
-const REFLOW_VERSION = 2
+const REFLOW_VERSION = 8
 const key = (bookId: string) => `${bookId}#reflow${REFLOW_VERSION}`
 
 interface Item {
@@ -53,39 +53,109 @@ async function pageLines(doc: OpenPdf, n: number) {
     if (Math.abs(b) > 0.01 * size || Math.abs(c) > 0.01 * size) continue
     items.push({ str: it.str, x: e, y: f, w: it.width, size })
   }
-  items.sort((p, q) => q.y - p.y || p.x - q.x)
-  const lines: Line[] = []
-  let cur: Item[] = []
-  const flush = () => {
-    if (!cur.length) return
-    cur.sort((p, q) => p.x - q.x)
-    let text = ''
-    let end = -Infinity
-    for (const it of cur) {
-      const gap = it.x - end
-      if (text && gap > it.size * 0.15 && !text.endsWith(' ') && !it.str.startsWith(' ')) text += ' '
-      text += it.str
-      end = it.x + it.w
+  const width = vp.width
+  const toLines = (group: Item[], shift = 0) => {
+    group.sort((p, q) => q.y - p.y || p.x - q.x)
+    const out: Line[] = []
+    let cur: Item[] = []
+    const flush = () => {
+      if (!cur.length) return
+      cur.sort((p, q) => p.x - q.x)
+      let text = ''
+      let end = -Infinity
+      for (const it of cur) {
+        const gap = it.x - end
+        if (text && gap > it.size * 0.15 && !text.endsWith(' ') && !it.str.startsWith(' ')) text += ' '
+        text += it.str
+        end = it.x + it.w
+      }
+      text = text.replace(/\s+/g, ' ').trim()
+      // Column lines are made relative to their column so indents and line lengths compare fairly.
+      if (text) out.push({ text, x: cur[0].x - shift, right: end - shift, y: cur[0].y, size: median(cur.map((i) => i.size)), page: n })
+      cur = []
     }
-    text = text.replace(/\s+/g, ' ').trim()
-    if (text) {
-      lines.push({
-        text,
-        x: cur[0].x,
-        right: end,
-        y: cur[0].y,
-        size: median(cur.map((i) => i.size)),
-        page: n,
-      })
+    for (const it of group) {
+      if (cur.length && Math.abs(it.y - cur[0].y) > Math.max(cur[0].size, it.size) * 0.5) flush()
+      cur.push(it)
     }
-    cur = []
+    flush()
+    return out
   }
-  for (const it of items) {
-    if (cur.length && Math.abs(it.y - cur[0].y) > Math.max(cur[0].size, it.size) * 0.5) flush()
-    cur.push(it)
+
+  // Two-column papers: find a vertical gutter near the middle that (almost) no text crosses.
+  const gutter = findGutter(items, width)
+  let lines: Line[]
+  if (gutter === null) {
+    lines = toLines(items)
+  } else {
+    const L: Item[] = [],
+      R: Item[] = [],
+      F: Item[] = []
+    for (const it of items) {
+      if (it.x + it.w <= gutter + 2) L.push(it)
+      else if (it.x >= gutter - 2) R.push(it)
+      else F.push(it) // spans both columns: title, abstract, wide figure captions
+    }
+    const full = toLines(F).map((l) => ({ ...l, kind: 'F' as const }))
+    const left = toLines(L).map((l) => ({ ...l, kind: 'L' as const }))
+    const right = toLines(R, gutter).map((l) => ({ ...l, kind: 'R' as const }))
+    // Read top to bottom; full-width lines split the page into bands, and within a band the
+    // left column is read before the right one.
+    const all = [...full, ...left, ...right].sort((a, b) => b.y - a.y)
+    lines = []
+    let bandL: Line[] = [],
+      bandR: Line[] = []
+    // A narrow left side column holds notes (affiliations, dates, licence): read it after the main text.
+    const sidebar = gutter < width * 0.38
+    const emit = () => {
+      if (sidebar) lines.push(...bandR, ...bandL)
+      else lines.push(...bandL, ...bandR)
+      bandL = []
+      bandR = []
+    }
+    for (const l of all) {
+      const { kind, ...line } = l
+      if (kind === 'F') {
+        emit()
+        lines.push(line)
+      } else if (kind === 'L') bandL.push(line)
+      else bandR.push(line)
+    }
+    emit()
   }
-  flush()
   return { lines, height: vp.height, width: vp.width }
+}
+
+/** x position of a column gutter (two columns, or a narrow side column), or null for single-column pages. */
+function findGutter(items: Item[], width: number): number | null {
+  const body = items.filter((i) => i.str.trim().length > 3)
+  if (body.length < 40) return null
+  // Count how many text pieces cross each candidate line, then put the gutter in the middle of
+  // the widest clean gap (placing it at a gap's edge would clip the column that starts there).
+  const step = 2
+  const samples: { x: number; c: number }[] = []
+  for (let x = width * 0.22; x <= width * 0.62; x += step)
+    samples.push({ x, c: body.filter((i) => i.x < x - 1 && i.x + i.w > x + 1).length })
+  const min = Math.min(...samples.map((p) => p.c))
+  const runs: { from: number; to: number }[] = []
+  for (const p of samples) {
+    if (p.c !== min) continue
+    const last = runs[runs.length - 1]
+    if (last && p.x - last.to <= step + 0.01) last.to = p.x
+    else runs.push({ from: p.x, to: p.x })
+  }
+  const run = runs.sort((a, b) => Math.abs((a.from + a.to) / 2 - width / 2) - Math.abs((b.from + b.to) / 2 - width / 2))[0]
+  const best: { x: number; crossings: number } | null = run ? { x: (run.from + run.to) / 2, crossings: min } : null
+  if (!best) return null
+  const leftN = body.filter((i) => i.x + i.w <= best!.x).length
+  const rightN = body.filter((i) => i.x >= best!.x).length
+  // A real gutter: few crossings, and plenty of text on both sides of it.
+  // (Full-width titles/abstracts cross it on first pages; figures can leave one column sparse.)
+  const ok =
+    best.crossings <= body.length * 0.25 &&
+    leftN >= Math.max(10, body.length * 0.15) &&
+    rightN >= Math.max(10, body.length * 0.15)
+  return ok ? best.x : null
 }
 
 /** Running headers/footers repeat across pages; page numbers are bare numerals. */
@@ -141,7 +211,7 @@ function toBlocks(pages: { lines: Line[]; width: number }[]): Block[] {
     }
     const size = median(para.map((l) => l.size))
     const kind: Block['kind'] =
-      size >= body * 1.6 && text.length < 140 ? 'h1' : size >= body * 1.2 && text.length < 160 ? 'h2' : 'p'
+      size >= body * 1.6 && text.length < 280 ? 'h1' : size >= body * 1.2 && text.length < 200 ? 'h2' : 'p'
     blocks.push({ kind, text, page: para[0].page })
     para = []
   }
@@ -155,7 +225,10 @@ function toBlocks(pages: { lines: Line[]; width: number }[]): Block[] {
         const bigGap = samePage && gap > lineGap * 1.45
         const indented = l.x > left + body * 1.2 && l.x - prev.x > body * 0.8
         const prevShort = prev.right < right - body * 3 && /[.!?:”"’)]$/.test(prev.text)
-        if (sizeChange || bigGap || indented || prevShort) emit()
+        // Multi-line titles/headings: same large size, spaced by their own (bigger) leading.
+        const headingRun =
+          samePage && l.size >= body * 1.2 && Math.abs(l.size - prev.size) < l.size * 0.08 && gap > 0 && gap < l.size * 1.9
+        if (!headingRun && (sizeChange || bigGap || indented || prevShort)) emit()
       }
       para.push(l)
     })
