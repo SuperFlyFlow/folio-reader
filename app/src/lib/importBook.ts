@@ -2,7 +2,7 @@ import ePub from 'epubjs'
 import { coverFields, db, type Book, type BookFormat } from './db'
 import { openPdf } from './pdf'
 import { backupBook } from './sync'
-import type { Classic } from './classics'
+import { classicCover, type Classic } from './classics'
 
 export const ACCEPT = '.pdf,.epub,application/pdf,application/epub+zip'
 
@@ -59,7 +59,7 @@ async function readPdfMeta(buf: ArrayBuffer) {
 /** `names` overrides title/author (used for curated books whose embedded metadata is noisy). */
 export async function importFiles(
   files: FileList | File[],
-  names?: { title: string; author: string; skipCover?: boolean },
+  names?: { title: string; author: string; cover?: Blob },
 ) {
   const added: Book[] = []
   const skipped: string[] = []
@@ -83,7 +83,7 @@ export async function importFiles(
       format,
       sizeBytes: file.size,
       totalPages: meta.pages,
-      ...(names?.skipCover ? {} : await coverFields(meta.cover)),
+      ...(await coverFields(names?.cover ?? meta.cover)),
       addedAt: Date.now(),
       backedUp: false,
       hasFile: true,
@@ -104,8 +104,10 @@ export async function addClassic(c: Classic) {
   const res = await fetch(`${import.meta.env.BASE_URL}classics/pg${c.id}.epub`)
   if (!res.ok) throw new Error(`Download failed (${res.status})`)
   const file = new File([await res.blob()], `${c.title}.epub`, { type: 'application/epub+zip' })
+  // Use the shelf artwork rather than the edition's own (often a generic placeholder).
+  const art = await fetch(classicCover(c)).then((r) => (r.ok ? r.blob() : undefined)).catch(() => undefined)
   // Gutenberg metadata is noisy ("active 6th century B.C. Sunzi"); use clean names.
-  const { added } = await importFiles([file], { title: c.title, author: c.author, skipCover: c.plainCover })
+  const { added } = await importFiles([file], { title: c.title, author: c.author, cover: art })
   if (!added[0]) throw new Error('Import failed')
   return added[0].id
 }

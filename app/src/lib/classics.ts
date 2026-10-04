@@ -18,7 +18,6 @@ export const CLASSICS: Classic[] = [
     tagline: 'Strategy, timing and winning without fighting',
     why: 'Thirteen short chapters on preparation, positioning and knowing yourself and your opponent. Its ideas carry straight into business, negotiation and everyday decisions.',
     minutes: 70,
-    plainCover: true,
   },
   {
     id: '2680',
@@ -43,7 +42,6 @@ export const CLASSICS: Classic[] = [
     tagline: 'How your thoughts shape your character and results',
     why: 'A short, powerful essay you can read in one sitting: your circumstances follow your habits of thought, so master your mind first.',
     minutes: 45,
-    plainCover: true,
   },
   {
     id: '45109',

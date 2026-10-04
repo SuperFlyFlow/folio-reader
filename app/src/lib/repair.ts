@@ -2,6 +2,7 @@ import { coverFields, db } from './db'
 import { openPdf } from './pdf'
 import { BUCKET, supabase } from './supabase'
 import { diag, errText } from './diag'
+import { CLASSICS, classicCover } from './classics'
 
 /**
  * One-time repair for covers saved as Blobs inside book records (see Book.cover): convert them to
@@ -9,6 +10,7 @@ import { diag, errText } from './diag'
  * them from the PDF's first page.
  */
 export async function repairCovers() {
+  await applyClassicCovers()
   const legacy = await db.books
     .filter((b) => !!b.cover || (b.format === 'pdf' && !b.coverBytes && b.hasFile))
     .toArray()
@@ -50,5 +52,20 @@ async function renderPdfCover(bookId: string) {
     return {}
   } finally {
     await doc.close()
+  }
+}
+
+/** Give library copies of the Free Classics their artwork when they don't have a cover yet. */
+async function applyClassicCovers() {
+  const art = new Map(CLASSICS.filter((c) => !c.plainCover).map((c) => [c.title.toLowerCase(), c]))
+  const missing = await db.books.filter((b) => !b.coverBytes && art.has(b.title.toLowerCase())).toArray()
+  for (const b of missing) {
+    try {
+      const res = await fetch(classicCover(art.get(b.title.toLowerCase())!))
+      if (!res.ok) continue
+      await db.books.update(b.id, { ...(await coverFields(await res.blob())), cover: undefined, backedUp: false })
+    } catch {
+      /* offline: try again next launch */
+    }
   }
 }
