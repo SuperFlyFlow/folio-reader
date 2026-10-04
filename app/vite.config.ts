@@ -20,15 +20,15 @@ export default defineConfig({
     },
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon-64.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Folio',
         short_name: 'Folio',
         description: 'Your books, beautifully read.',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#000000',
-        theme_color: '#000000',
+        background_color: '#10143a',
+        theme_color: '#10143a',
         start_url: base,
         scope: base,
         icons: [

@@ -32,9 +32,7 @@ export default function SignIn({ onSkip }: { onSkip: () => void }) {
   return (
     <div className="signin">
       <div className="signin-hero">
-        <div className="app-mark">
-          <Icon name="books" size={40} stroke={2} />
-        </div>
+        <img className="app-mark" src={`${import.meta.env.BASE_URL}icon-192.png`} alt="Folio" width={84} height={84} />
         <h1>Folio</h1>
         <p>Your books, beautifully read.</p>
       </div>

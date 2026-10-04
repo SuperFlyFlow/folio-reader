@@ -21,8 +21,8 @@ export function useBack(fallback = '/') {
 export function TabBar() {
   const tabs = [
     { to: '/', icon: 'books', label: 'Library' },
-    { to: '/reading', icon: 'chart', label: 'Reading' },
-    { to: '/notes', icon: 'quote', label: 'Notes' },
+    { to: '/reading', icon: 'hourglass', label: 'Reading' },
+    { to: '/notes', icon: 'quill', label: 'Notes' },
     { to: '/settings', icon: 'gear', label: 'Settings' },
   ]
   return (

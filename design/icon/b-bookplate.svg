@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7efdc"/><stop offset="1" stop-color="#eadcbf"/></linearGradient>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&amp;display=swap');</style>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#paper)"/>
+  <rect x="120" y="120" width="784" height="784" rx="40" fill="none" stroke="#1d2550" stroke-width="10"/>
+  <rect x="148" y="148" width="728" height="728" rx="24" fill="none" stroke="#1d2550" stroke-width="3"/>
+  <text x="512" y="660" text-anchor="middle" font-family="'Cormorant Garamond', Georgia, serif" font-weight="600" font-size="520" fill="#1d2550">F</text>
+  <path d="M392 760h240" stroke="#a8823f" stroke-width="6" stroke-linecap="round"/>
+  <path d="M512 742l12 18-12 18-12-18z" fill="#a8823f"/>
+</svg>

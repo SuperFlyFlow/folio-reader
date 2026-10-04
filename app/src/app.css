@@ -306,14 +306,11 @@ mark {
   text-align: center;
 }
 .app-mark {
-  display: grid;
-  place-items: center;
+  display: block;
   width: 84px;
   height: 84px;
-  border-radius: 20px;
-  background: linear-gradient(150deg, #6d6cff, #4338ca);
-  color: #fff;
-  box-shadow: 0 10px 30px rgba(83, 82, 237, 0.35);
+  border-radius: 19px;
+  box-shadow: 0 10px 30px rgba(20, 24, 70, 0.35);
 }
 .signin-hero h1 {
   margin: 18px 0 4px;
