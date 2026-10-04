@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Book, type Progress } from '../lib/db'
+import { authorLine, sourceLine } from '../lib/articles'
 import Icon from './Icon'
-import ArticleRow, { surnames } from './ArticleRow'
-import { formatDuration } from './ui'
+import { Cover } from './ui'
 
-/** Library → Articles: a compact, typographic research list. */
+/** Library → Articles: a compact research list (first-page thumbnail, authors, journal, progress). */
 export default function ArticleList({
   articles,
   progress,
@@ -29,16 +29,15 @@ export default function ArticleList({
 
   if (!articles.length && !query) {
     return (
-      <div className="a-empty">
-        <span className="a-empty-icon">
-          <Icon name="doc" size={22} stroke={1.8} />
+      <div className="empty-state" style={{ paddingTop: 40 }}>
+        <span className="empty-icon">
+          <Icon name="doc" size={32} stroke={1.6} />
         </span>
-        <div>
-          <div className="a-empty-title">No articles yet</div>
-          <div className="a-empty-text">Import a paper (PDF) and Folio fills in the title, authors and journal from its DOI.</div>
-        </div>
-        <button className="a-pill" onClick={onImport} disabled={importing}>
-          {importing ? 'Adding…' : 'Import'}
+        <h2>No articles yet</h2>
+        <p>Import research papers and journal articles (PDF). Folio looks up the title, authors, journal and abstract from the paper’s DOI.</p>
+        <button className="btn btn-primary" onClick={onImport} disabled={importing}>
+          <Icon name="plus" size={18} stroke={2.4} />
+          {importing ? 'Importing…' : 'Import Article'}
         </button>
       </div>
     )
@@ -46,48 +45,48 @@ export default function ArticleList({
 
   return (
     <>
-      <div className="section-title small">Your Articles</div>
-      <div className="a-list">
-        {articles.map((a) => {
-          const pct = Math.round((progress?.get(a.id)?.percent ?? 0) * 100)
-          const hl = highlightCounts?.get(a.id) ?? 0
-          const journal = a.article?.journal
-          const eyebrow = [journal, a.article?.year].filter(Boolean).join(' · ') || (a.format === 'pdf' ? 'PDF' : 'EPUB')
-          const pages = a.totalPages
-          return (
-            <ArticleRow
-              key={a.id}
-              journal={journal}
-              eyebrow={eyebrow}
-              title={a.title}
-              byline={surnames(a.article?.authors, a.author)}
-              onOpen={() => navigate(`/read/${a.id}`)}
-              onMore={() => navigate(`/book/${a.id}`)}
-              status={
-                <>
-                  {pct > 0 ? (
-                    <>
-                      <span className="a-bar">
-                        <span style={{ width: `${pct}%` }} />
-                      </span>
-                      <span>{pct >= 100 ? 'Finished' : `${pct}%`}</span>
-                    </>
-                  ) : (
-                    <span>{pages ? `${pages} pages · ${formatDuration(pages * 2.5)}` : 'Not started'}</span>
-                  )}
-                  {hl > 0 && (
-                    <span className="a-hl">
-                      <Icon name="quote" size={11} stroke={2.4} />
-                      {hl}
+    <div className="section-title small">Your Articles</div>
+    <div className="article-list">
+      {articles.map((a) => {
+        const pct = Math.round((progress?.get(a.id)?.percent ?? 0) * 100)
+        const hl = highlightCounts?.get(a.id) ?? 0
+        const authors = authorLine(a.article?.authors) || a.author
+        const source = sourceLine(a.article)
+        return (
+          <div key={a.id} className="article-row">
+            <button className="article-thumb" onClick={() => navigate(`/read/${a.id}`)} aria-label={`Open ${a.title}`}>
+              <Cover book={a} width={52} />
+            </button>
+            <button className="article-text" onClick={() => navigate(`/read/${a.id}`)}>
+              <span className="article-title">{a.title}</span>
+              {authors && <span className="article-authors">{authors}</span>}
+              {source && <span className="article-source">{source}</span>}
+              <span className="article-meta">
+                {pct > 0 ? (
+                  <>
+                    <span className="progress-track" style={{ width: 56 }}>
+                      <span className="progress-fill" style={{ width: `${pct}%`, display: 'block' }} />
                     </span>
-                  )}
-                </>
-              }
-            />
-          )
-        })}
-      </div>
+                    <span>{pct >= 100 ? 'Read' : `${pct}%`}</span>
+                  </>
+                ) : (
+                  <span className="new-badge">New</span>
+                )}
+                {hl > 0 && (
+                  <span className="article-hl">
+                    <Icon name="quote" size={12} stroke={2.2} /> {hl}
+                  </span>
+                )}
+              </span>
+            </button>
+            <button className="tile-more" onClick={() => navigate(`/book/${a.id}`)} aria-label="Article details">
+              <Icon name="more" size={20} stroke={2.6} />
+            </button>
+          </div>
+        )
+      })}
       {query && !articles.length && <p className="muted list-empty">No articles match “{query}”.</p>}
+    </div>
     </>
   )
 }
