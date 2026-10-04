@@ -5,6 +5,7 @@ import { backupBook } from './sync'
 import { classicCover, type Classic } from './classics'
 import { findIdentifier, firstPagesText, lookupArticle } from './articles'
 import type { ArticleMeta } from './db'
+import { paperMeta, paperUrl, type Paper } from './papers'
 
 export const ACCEPT = '.pdf,.epub,application/pdf,application/epub+zip'
 
@@ -61,7 +62,7 @@ async function readPdfMeta(buf: ArrayBuffer) {
 /** `names` overrides title/author (used for curated books whose embedded metadata is noisy). */
 export async function importFiles(
   files: FileList | File[],
-  names?: { title: string; author: string; cover?: Blob },
+  names?: { title: string; author: string; cover?: Blob; article?: ArticleMeta },
   opts: { kind?: 'book' | 'article' } = {},
 ) {
   const kind = opts.kind ?? 'book'
@@ -92,7 +93,9 @@ export async function importFiles(
           pageTitle = title
           pageByline = byline
           const id = findIdentifier(text)
-          article = (id && (await lookupArticle(id))) || (id ? { doi: id } : {})
+          const found = (id && (await lookupArticle(id))) || (id ? { doi: id } : {})
+          // Curated papers bring trusted details; the lookup can still add the abstract.
+          article = names?.article ? { ...found, ...names.article, abstract: names.article.abstract ?? found.abstract } : found
         } finally {
           await doc.close()
         }
@@ -148,6 +151,20 @@ export async function addClassic(c: Classic) {
   const art = await fetch(classicCover(c)).then((r) => (r.ok ? r.blob() : undefined)).catch(() => undefined)
   // Gutenberg metadata is noisy ("active 6th century B.C. Sunzi"); use clean names.
   const { added } = await importFiles([file], { title: c.title, author: c.author, cover: art })
+  if (!added[0]) throw new Error('Import failed')
+  return added[0].id
+}
+
+/** Downloads a recommended open-access paper hosted with the app and adds it to Articles. */
+export async function addPaper(p: Paper) {
+  const res = await fetch(paperUrl(p))
+  if (!res.ok) throw new Error(`Download failed (${res.status})`)
+  const file = new File([await res.blob()], `${p.file}.pdf`, { type: 'application/pdf' })
+  const { added } = await importFiles(
+    [file],
+    { title: p.title, author: p.authors.join(', '), article: paperMeta(p) },
+    { kind: 'article' },
+  )
   if (!added[0]) throw new Error('Import failed')
   return added[0].id
 }

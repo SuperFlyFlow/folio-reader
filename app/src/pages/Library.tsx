@@ -6,6 +6,7 @@ import Icon from '../components/Icon'
 import { Cover, Sheet, toast } from '../components/ui'
 import ClassicsShelf from '../components/ClassicsShelf'
 import ArticleList from '../components/ArticleList'
+import PapersShelf from '../components/PapersShelf'
 import { Segmented } from '../components/ui'
 
 type SortKey = 'recent' | 'title' | 'author' | 'added'
@@ -157,6 +158,7 @@ export default function Library() {
             </label>
           )}
           <ArticleList articles={visibleArticles} progress={progress} onImport={pickFiles} importing={importing} query={query} />
+          {!query && <PapersShelf />}
         </>
       )}
 
