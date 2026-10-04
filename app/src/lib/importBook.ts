@@ -1,5 +1,5 @@
 import ePub from 'epubjs'
-import { db, type Book, type BookFormat } from './db'
+import { coverFields, db, type Book, type BookFormat } from './db'
 import { openPdf } from './pdf'
 import { backupBook } from './sync'
 
@@ -78,7 +78,7 @@ export async function importFiles(files: FileList | File[]) {
       format,
       sizeBytes: file.size,
       totalPages: meta.pages,
-      cover: meta.cover,
+      ...(await coverFields(meta.cover)),
       addedAt: Date.now(),
       backedUp: false,
       hasFile: true,

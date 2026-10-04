@@ -10,7 +10,11 @@ export interface Book {
   format: BookFormat
   sizeBytes: number
   totalPages?: number
+  /** @deprecated legacy: a Blob kept in the record. iOS can corrupt Blobs that are read from and
+   * written back to IndexedDB (which every record update does), so covers are stored as bytes. */
   cover?: Blob
+  coverBytes?: ArrayBuffer
+  coverType?: string
   addedAt: number
   lastOpenedAt?: number
   /** true once the file is stored in Supabase */
@@ -93,6 +97,12 @@ export async function requestPersistence() {
   } catch {
     /* not supported */
   }
+}
+
+/** Cover image fields for a book record (bytes, never a Blob — see Book.cover). */
+export async function coverFields(blob?: Blob | null) {
+  if (!blob || !blob.size) return {}
+  return { coverBytes: await blob.arrayBuffer(), coverType: blob.type || 'image/jpeg' }
 }
 
 export function today() {

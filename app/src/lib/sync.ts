@@ -1,4 +1,4 @@
-import { db, type Annotation, type Book } from './db'
+import { coverFields, db, type Annotation, type Book } from './db'
 import { BUCKET, supabase } from './supabase'
 import { getSettings } from './settings'
 
@@ -33,9 +33,10 @@ export async function backupBook(bookId: string) {
     }
   }
   let coverPath: string | null = null
-  if (book.cover) {
+  if (book.coverBytes) {
     coverPath = `${uid}/${book.id}-cover.jpg`
-    await supabase.storage.from(BUCKET).upload(coverPath, book.cover, { upsert: true, contentType: 'image/jpeg' })
+    const type = book.coverType || 'image/jpeg'
+    await supabase.storage.from(BUCKET).upload(coverPath, new Blob([book.coverBytes], { type }), { upsert: true, contentType: type })
   }
   const { error } = await supabase.from('books').upsert({
     id: book.id,
@@ -160,10 +161,10 @@ async function pullRemote() {
   const { data: books } = await supabase.from('books').select('*')
   for (const r of books ?? []) {
     if (await db.books.get(r.id)) continue
-    let cover: Blob | undefined
+    let cover = {}
     if (r.cover_path) {
       const { data } = await supabase.storage.from(BUCKET).download(r.cover_path)
-      cover = data ?? undefined
+      cover = await coverFields(data)
     }
     await db.books.add({
       id: r.id,
@@ -172,7 +173,7 @@ async function pullRemote() {
       format: r.format,
       sizeBytes: r.size_bytes ?? 0,
       totalPages: r.total_pages ?? undefined,
-      cover,
+      ...cover,
       addedAt: Date.parse(r.created_at),
       lastOpenedAt: r.last_opened_at ? Date.parse(r.last_opened_at) : undefined,
       backedUp: !!r.file_path,

@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { diag, errText } from '../lib/diag'
 
 export default class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
@@ -7,8 +8,9 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
     return { error }
   }
 
-  componentDidCatch(error: Error) {
+  componentDidCatch(error: Error, info: { componentStack?: string | null }) {
     console.error(error)
+    diag('render-error', { path: location.pathname, error: errText(error), stack: info.componentStack?.slice(0, 600) })
   }
 
   render() {

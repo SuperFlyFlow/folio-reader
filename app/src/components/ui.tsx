@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import type { Book } from '../lib/db'
 import Icon from './Icon'
@@ -37,9 +37,21 @@ export function TabBar() {
 }
 
 /** Renders a book cover, or a typographic fallback when the file has none. */
-export function Cover({ book, width }: { book: Pick<Book, 'title' | 'author' | 'cover' | 'id'>; width?: number }) {
-  const url = useObjectUrl(book.cover)
-  if (url) return <img className="cover" src={url} alt="" style={{ width }} draggable={false} />
+export function Cover({
+  book,
+  width,
+}: {
+  book: Pick<Book, 'title' | 'author' | 'id' | 'coverBytes' | 'coverType'>
+  width?: number
+}) {
+  const blob = useMemo(
+    () => (book.coverBytes?.byteLength ? new Blob([book.coverBytes], { type: book.coverType || 'image/jpeg' }) : undefined),
+    [book.coverBytes, book.coverType],
+  )
+  const url = useObjectUrl(blob)
+  const [failed, setFailed] = useState(false)
+  if (url && !failed)
+    return <img className="cover" src={url} alt="" style={{ width }} draggable={false} onError={() => setFailed(true)} />
   const hue = [...book.id].reduce((h, c) => h + c.charCodeAt(0), 0) % 360
   return (
     <div

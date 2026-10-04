@@ -3,6 +3,7 @@ import { Route, Routes, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { syncAll } from './lib/sync'
+import { diag, errText } from './lib/diag'
 import { TabBar, ToastHost } from './components/ui'
 import ErrorBoundary from './components/ErrorBoundary'
 import SignIn from './pages/SignIn'
@@ -53,6 +54,24 @@ export default function App() {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
+
+  // Report errors from any screen (not just the reader) so phone-only problems show up remotely.
+  useEffect(() => {
+    const onErr = (ev: ErrorEvent) => diag('app-error', { path: location.pathname, error: errText(ev.error ?? ev.message) })
+    const onRej = (ev: PromiseRejectionEvent) => diag('app-error', { path: location.pathname, error: errText(ev.reason) })
+    window.addEventListener('error', onErr)
+    window.addEventListener('unhandledrejection', onRej)
+    return () => {
+      window.removeEventListener('error', onErr)
+      window.removeEventListener('unhandledrejection', onRej)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (session === undefined) return
+    // Repair covers once per launch (cheap when there's nothing to do); lazy so pdf.js loads only if needed.
+    void import('./lib/repair').then((m) => m.repairCovers()).catch((e) => diag('cover-repair-error', { error: errText(e) }))
+  }, [session])
 
   useEffect(() => {
     if (!session) return
