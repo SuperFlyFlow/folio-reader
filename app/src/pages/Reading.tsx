@@ -101,26 +101,35 @@ export default function Reading() {
         </div>
       </div>
 
-      {current.length > 0 && (
-        <>
-          <div className="section-title">Currently Reading</div>
-          <div className="carousel">
-            {current.map((b) => {
-              const p = Math.round((progress?.get(b.id)?.percent ?? 0) * 100)
-              return (
-                <button key={b.id} className="carousel-item" onClick={() => navigate(`/read/${b.id}`)}>
-                  <Cover book={b} width={104} />
-                  <span className="carousel-title">{b.title}</span>
-                  <div className="progress-track">
-                    <div className="progress-fill" style={{ width: `${p}%` }} />
-                  </div>
-                  <span className="caption">{p}%</span>
-                </button>
-              )
-            })}
-          </div>
-        </>
-      )}
+      {current.length > 0 && <div className="section-title">Currently Reading</div>}
+      {(['book', 'article'] as const).map((kind) => {
+        const list = current.filter((b) => (b.kind ?? 'book') === kind)
+        if (!list.length) return null
+        return (
+          <section key={kind}>
+            <div className="reading-group">
+              {kind === 'book' ? 'Books' : 'Articles'}
+              <span className="caption">{list.length}</span>
+            </div>
+            <div className="carousel">
+              {list.map((b) => {
+                const p = Math.round((progress?.get(b.id)?.percent ?? 0) * 100)
+                return (
+                  <button key={b.id} className="carousel-item" onClick={() => navigate(`/read/${b.id}`)}>
+                    <Cover book={b} width={104} />
+                    <span className="carousel-title">{b.title}</span>
+                    {kind === 'article' && b.article?.journal && <span className="caption ellipsis">{b.article.journal}</span>}
+                    <div className="progress-track">
+                      <div className="progress-fill" style={{ width: `${p}%` }} />
+                    </div>
+                    <span className="caption">{p}%</span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }

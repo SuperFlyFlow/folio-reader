@@ -1662,3 +1662,17 @@ mark {
 .paper-detail .btn {
   margin-top: 8px;
 }
+.reading-group {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 4px var(--gutter) 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--label-2);
+}
+.reading-group + .carousel {
+  margin-bottom: 14px;
+}
