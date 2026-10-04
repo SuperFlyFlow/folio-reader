@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Book, type Progress } from '../lib/db'
 import Icon from '../components/Icon'
 import { Cover, Sheet, toast } from '../components/ui'
+import ClassicsShelf from '../components/ClassicsShelf'
 
 type SortKey = 'recent' | 'title' | 'author' | 'added'
 const SORTS: { key: SortKey; label: string }[] = [
@@ -110,6 +111,11 @@ export default function Library() {
           </p>
         </div>
       )}
+      {books && books.length === 0 && (
+        <div style={{ marginTop: 32 }}>
+          <ClassicsShelf />
+        </div>
+      )}
 
       {!!books?.length && (
         <>
@@ -149,6 +155,8 @@ export default function Library() {
           )}
         </>
       )}
+
+      {!!books?.length && !query && <ClassicsShelf />}
 
       {importing && <div className="toast">Importing…</div>}
 

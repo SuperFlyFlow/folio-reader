@@ -232,7 +232,13 @@ const EpubEngine = forwardRef<EngineHandle, EngineProps>(function EpubEngine(pro
       tocRef.current = flat
       propsRef.current.onReady(flat)
 
-      await rendition.display(props.initialLocation || undefined)
+      // First open: skip a cover-only first page (e.g. Project Gutenberg's) and start at the title page.
+      let start: string | undefined = props.initialLocation || undefined
+      if (!start) {
+        const first = book.spine.get(0)
+        if (first && /cover/i.test(`${first.href ?? ''} ${first.idref ?? ''}`) && book.spine.get(1)) start = book.spine.get(1).href
+      }
+      await rendition.display(start)
       drawAnnotations()
 
       // Page-accurate percentages: cached per book after first generation.

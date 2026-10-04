@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, useNavigate } from 'react-router-dom'
 import type { Book } from '../lib/db'
 import Icon from './Icon'
@@ -58,8 +59,15 @@ export function Cover({
       className="cover cover-fallback"
       style={{ width, background: `linear-gradient(160deg, hsl(${hue} 32% 34%), hsl(${(hue + 30) % 360} 38% 20%))` }}
     >
-      <span className="cover-fallback-title">{book.title}</span>
-      {book.author && <span className="cover-fallback-author">{book.author}</span>}
+      {/* With a fixed width, size text directly (container units misresolve in some layouts). */}
+      <span className="cover-fallback-title" style={width ? { fontSize: width * 0.11 } : undefined}>
+        {book.title}
+      </span>
+      {book.author && (
+        <span className="cover-fallback-author" style={width ? { fontSize: width * 0.065 } : undefined}>
+          {book.author}
+        </span>
+      )}
     </div>
   )
 }
@@ -86,7 +94,10 @@ export function Sheet({
   children: ReactNode
   right?: ReactNode
 }) {
-  return (
+  // Portal to the app frame: inside a scrolled screen, an absolutely positioned sheet would sit
+  // wherever the top of the scroll content is, not at the bottom of what's visible.
+  const host = document.querySelector('.app-frame') ?? document.body
+  return createPortal(
     <>
       <div className="sheet-backdrop" onClick={onClose} />
       <div className="sheet" role="dialog" aria-label={title}>
@@ -103,7 +114,8 @@ export function Sheet({
         )}
         <div className="sheet-body">{children}</div>
       </div>
-    </>
+    </>,
+    host,
   )
 }
 
