@@ -5,6 +5,8 @@ import { db } from '../lib/db'
 import { deleteBookEverywhere, MAX_BACKUP_BYTES } from '../lib/sync'
 import { highlightsMarkdown, shareMarkdown } from '../lib/export'
 import { getSettings } from '../lib/settings'
+import { authorLine, citation, lookupArticle, sourceLine } from '../lib/articles'
+import { supabase } from '../lib/supabase'
 import Icon from '../components/Icon'
 import { Cover, Sheet, formatBytes, formatDuration, toast, useBack } from '../components/ui'
 
@@ -20,10 +22,25 @@ export default function BookDetails() {
   }, [id])
   const seconds = useLiveQuery(async () => (await db.sessions.where('bookId').equals(id).toArray()).reduce((s, x) => s + x.seconds, 0), [id])
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [abstractOpen, setAbstractOpen] = useState(false)
+  const [doiOpen, setDoiOpen] = useState(false)
+  const [doiInput, setDoiInput] = useState('')
+  const [looking, setLooking] = useState(false)
+
+  /** Push edited details (title, authors, journal…) to the backup without re-uploading the file. */
+  async function saveMeta() {
+    const b = await db.books.get(id)
+    if (!b?.backedUp) return
+    await supabase
+      .from('books')
+      .update({ title: b.title, author: b.author || null, kind: b.kind ?? 'book', meta: b.article ?? {} })
+      .eq('id', b.id)
+  }
 
   if (book === undefined) return <div className="screen" />
   if (!book) return <Navigate to="/" replace />
 
+  const isArticle = book.kind === 'article'
   const pct = progress?.percent ?? 0
   const started = pct > 0.001
   // Estimate time left from time spent so far, else from page count.
@@ -47,7 +64,16 @@ export default function BookDetails() {
           <Cover book={book} width={168} />
         </div>
         <h1 className="detail-title">{book.title}</h1>
-        {book.author && <p className="muted detail-author">{book.author}</p>}
+        {isArticle ? (
+          <>
+            {(book.article?.authors?.length || book.author) && (
+              <p className="muted detail-author">{authorLine(book.article?.authors, 6) || book.author}</p>
+            )}
+            {sourceLine(book.article) && <p className="detail-source">{sourceLine(book.article)}</p>}
+          </>
+        ) : (
+          book.author && <p className="muted detail-author">{book.author}</p>
+        )}
 
         <div className="detail-progress">
           <svg width="60" height="60" viewBox="0 0 60 60" aria-hidden="true">
@@ -118,6 +144,62 @@ export default function BookDetails() {
         </button>
       </div>
 
+      {isArticle && book.article?.abstract && (
+        <div className={`abstract${abstractOpen ? '' : ' clamped'}`} onClick={() => setAbstractOpen((o) => !o)}>
+          <h3>Abstract</h3>
+          <p>{book.article.abstract}</p>
+        </div>
+      )}
+
+      {isArticle && (
+        <div className="group">
+          <button
+            className="row"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(citation(book))
+                toast('Citation copied')
+              } catch {
+                toast(citation(book))
+              }
+            }}
+          >
+            <span className="row-icon" style={{ background: '#5352ed' }}>
+              <Icon name="copy" size={16} stroke={2} />
+            </span>
+            <span className="row-label">Copy Citation</span>
+            <span className="row-value caption">APA</span>
+          </button>
+          {book.article?.doi ? (
+            <a className="row" href={`https://doi.org/${book.article.doi}`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+              <span className="row-icon" style={{ background: '#0a84ff' }}>
+                <Icon name="share" size={16} stroke={2} />
+              </span>
+              <span className="row-label">
+                Open Publisher Page
+                <span className="caption" style={{ display: 'block' }}>
+                  doi.org/{book.article.doi}
+                </span>
+              </span>
+              <Icon name="chevron" size={16} stroke={2.4} className="row-chevron" />
+            </a>
+          ) : (
+            <button className="row" onClick={() => setDoiOpen(true)}>
+              <span className="row-icon" style={{ background: '#ff9f0a' }}>
+                <Icon name="search" size={16} stroke={2} />
+              </span>
+              <span className="row-label">
+                Find Paper Details
+                <span className="caption" style={{ display: 'block' }}>
+                  Enter the DOI to fill in authors, journal and abstract
+                </span>
+              </span>
+              <Icon name="chevron" size={16} stroke={2.4} className="row-chevron" />
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="group-header">Info</div>
       <div className="group">
         <div className="row no-icon static">
@@ -147,10 +229,55 @@ export default function BookDetails() {
       </div>
 
       <div className="group">
+        <button
+          className="row no-icon"
+          onClick={async () => {
+            await db.books.update(id, isArticle ? { kind: 'book' } : { kind: 'article', article: book.article ?? {}, pdfView: book.format === 'pdf' ? 'pages' : book.pdfView })
+            await saveMeta()
+            toast(isArticle ? 'Moved to Books' : 'Moved to Articles')
+          }}
+        >
+          <span className="row-label accent">{isArticle ? 'Move to Books' : 'Move to Articles'}</span>
+        </button>
         <button className="row no-icon destructive" onClick={() => setConfirmDelete(true)}>
           <span className="row-label">Remove from Library</span>
         </button>
       </div>
+
+      {doiOpen && (
+        <Sheet title="Find Paper Details" onClose={() => setDoiOpen(false)}>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Paste the paper’s DOI (e.g. 10.1038/nature14539) or arXiv id (e.g. arXiv:1706.03762). It’s usually on the first page.
+          </p>
+          <label className="search-field" style={{ margin: '0 0 14px' }}>
+            <input value={doiInput} onChange={(e) => setDoiInput(e.target.value)} placeholder="10.xxxx/… or arXiv:…" autoFocus />
+          </label>
+          <button
+            className="btn btn-primary btn-block"
+            disabled={looking || !doiInput.trim()}
+            onClick={async () => {
+              setLooking(true)
+              const raw = doiInput.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '')
+              const arxiv = raw.match(/(?:arxiv:)?\s*(\d{4}\.\d{4,5})/i)?.[1]
+              const idv = arxiv && !raw.startsWith('10.') ? `10.48550/arXiv.${arxiv}` : raw
+              const found = await lookupArticle(idv)
+              setLooking(false)
+              if (!found) return toast('No details found for that DOI')
+              const { title, ...article } = found
+              await db.books.update(id, {
+                article,
+                ...(title ? { title } : {}),
+                ...(article.authors?.length ? { author: article.authors.join(', ') } : {}),
+              })
+              await saveMeta()
+              setDoiOpen(false)
+              toast('Details updated')
+            }}
+          >
+            {looking ? 'Looking up…' : 'Look Up'}
+          </button>
+        </Sheet>
+      )}
 
       {confirmDelete && (
         <Sheet title="Remove this book?" onClose={() => setConfirmDelete(false)}>

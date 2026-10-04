@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
 
   const { data: rows, error } = await supabase
     .from('annotations')
-    .select('id, text_excerpt, note, color, chapter, location, tags, created_at, updated_at, notion_page_id, notion_synced_at, books(title, author, format)')
+    .select('id, text_excerpt, note, color, chapter, location, tags, created_at, updated_at, notion_page_id, notion_synced_at, books(title, author, format, kind, meta)')
     .neq('type', 'bookmark')
     .order('updated_at')
     .limit(200)
@@ -92,7 +92,11 @@ Deno.serve(async (req) => {
 
   let synced = 0
   for (const r of pending.slice(0, 40)) {
-    const book = (Array.isArray(r.books) ? r.books[0] : r.books) as { title?: string; author?: string } | null
+    const book = (Array.isArray(r.books) ? r.books[0] : r.books) as
+      | { title?: string; author?: string; kind?: string; meta?: { journal?: string; year?: number; doi?: string } }
+      | null
+    const isArticle = book?.kind === 'article'
+    const source = isArticle ? [book?.meta?.journal, book?.meta?.year].filter(Boolean).join(', ') : ''
     const properties = {
       Quote: { title: text(r.text_excerpt || '(highlight)') },
       Note: { rich_text: text(r.note) },
@@ -103,6 +107,9 @@ Deno.serve(async (req) => {
       Tags: { multi_select: (r.tags ?? []).slice(0, 20).map((t: string) => ({ name: option(t) })) },
       Highlighted: { date: { start: r.created_at } },
       'Reader ID': { rich_text: text(r.id) },
+      Type: { select: { name: isArticle ? 'Article' : 'Book' } },
+      Source: { rich_text: text(source) },
+      DOI: { url: isArticle && book?.meta?.doi ? `https://doi.org/${book.meta.doi}` : null },
     }
     try {
       let pageId = r.notion_page_id as string | null

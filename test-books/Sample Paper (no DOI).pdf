@@ -1,0 +1,51 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Length 1578 >>
+stream
+BT
+/F2 18 Tf 1 0 0 1 60 720 Tm (Attention Patterns in Long-Form Reading) Tj
+/F1 11 Tf 1 0 0 1 60 695 Tm (A. Researcher, B. Scholar) Tj
+/F1 10 Tf 1 0 0 1 60 660 Tm (Deep learning allows computational models that are composed of multiple processing layers to) Tj
+/F1 10 Tf 1 0 0 1 60 647 Tm (learn representations of data with multiple levels of abstraction. These methods have) Tj
+/F1 10 Tf 1 0 0 1 60 634 Tm (dramatically improved the state-of-the-art in speech recognition, visual object recognition,) Tj
+/F1 10 Tf 1 0 0 1 60 621 Tm (object detection and many other domains such as drug discovery and genomics.Deep learning) Tj
+/F1 10 Tf 1 0 0 1 60 608 Tm (allows computational models that are composed of multiple processing layers to learn) Tj
+/F1 10 Tf 1 0 0 1 60 595 Tm (representations of data with multiple levels of abstraction. These methods have dramatically) Tj
+/F1 10 Tf 1 0 0 1 60 582 Tm (improved the state-of-the-art in speech recognition, visual object recognition, object) Tj
+/F1 10 Tf 1 0 0 1 60 569 Tm (detection and many other domains such as drug discovery and genomics.Deep learning allows) Tj
+/F1 10 Tf 1 0 0 1 60 556 Tm (computational models that are composed of multiple processing layers to learn representations) Tj
+/F1 10 Tf 1 0 0 1 60 543 Tm (of data with multiple levels of abstraction. These methods have dramatically improved the) Tj
+/F1 10 Tf 1 0 0 1 60 530 Tm (state-of-the-art in speech recognition, visual object recognition, object detection and many) Tj
+/F1 10 Tf 1 0 0 1 60 517 Tm (other domains such as drug discovery and genomics.) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 5 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000187 00000 n 
+0000000262 00000 n 
+0000001892 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2028
+%%EOF

@@ -48,6 +48,8 @@ export async function backupBook(bookId: string) {
     cover_path: coverPath,
     size_bytes: book.sizeBytes,
     total_pages: book.totalPages ?? null,
+    kind: book.kind ?? 'book',
+    meta: book.article ?? {},
     created_at: new Date(book.addedAt).toISOString(),
     last_opened_at: book.lastOpenedAt ? new Date(book.lastOpenedAt).toISOString() : null,
   })
@@ -178,6 +180,8 @@ async function pullRemote() {
       lastOpenedAt: r.last_opened_at ? Date.parse(r.last_opened_at) : undefined,
       backedUp: !!r.file_path,
       hasFile: false,
+      kind: r.kind ?? 'book',
+      ...(r.kind === 'article' ? { article: r.meta ?? {}, pdfView: 'pages' as const } : {}),
     })
   }
   const { data: progress } = await supabase.from('reading_progress').select('*')

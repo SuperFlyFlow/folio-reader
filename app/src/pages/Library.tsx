@@ -5,6 +5,8 @@ import { db, type Book, type Progress } from '../lib/db'
 import Icon from '../components/Icon'
 import { Cover, Sheet, toast } from '../components/ui'
 import ClassicsShelf from '../components/ClassicsShelf'
+import ArticleList from '../components/ArticleList'
+import { Segmented } from '../components/ui'
 
 type SortKey = 'recent' | 'title' | 'author' | 'added'
 const SORTS: { key: SortKey; label: string }[] = [
@@ -36,8 +38,26 @@ export default function Library() {
   })
   const [sortOpen, setSortOpen] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [shelf, setShelfState] = useState<'books' | 'articles'>(() => {
+    try {
+      return localStorage.getItem('folio.shelf') === 'articles' ? 'articles' : 'books'
+    } catch {
+      return 'books'
+    }
+  })
+  const setShelf = (v: 'books' | 'articles') => {
+    setShelfState(v)
+    setQuery('')
+    try {
+      localStorage.setItem('folio.shelf', v)
+    } catch {
+      /* ignore */
+    }
+  }
 
-  const books = useLiveQuery(() => db.books.toArray(), [])
+  const everything = useLiveQuery(() => db.books.toArray(), [])
+  const books = useMemo(() => everything?.filter((b) => b.kind !== 'article'), [everything])
+  const articles = useMemo(() => everything?.filter((b) => b.kind === 'article'), [everything])
   const progress = useLiveQuery(async () => {
     const all = await db.progress.toArray()
     return new Map(all.map((p) => [p.bookId, p]))
@@ -46,7 +66,7 @@ export default function Library() {
   const continueBook = useMemo(() => {
     if (!books || !progress) return undefined
     return books
-      .filter((b) => b.lastOpenedAt && (progress.get(b.id)?.percent ?? 0) < 0.995)
+      .filter((b) => b.kind !== 'article' && b.lastOpenedAt && (progress.get(b.id)?.percent ?? 0) < 0.995)
       .sort((a, b) => b.lastOpenedAt! - a.lastOpenedAt!)[0]
   }, [books, progress])
 
@@ -57,13 +77,29 @@ export default function Library() {
     return sortBooks(filtered, sort)
   }, [books, query, sort])
 
+  const visibleArticles = useMemo(() => {
+    if (!articles) return []
+    const q = query.trim().toLowerCase()
+    const filtered = q
+      ? articles.filter((b) =>
+          [b.title, b.author, b.article?.journal, b.article?.year, b.article?.doi, ...(b.article?.authors ?? [])]
+            .join(' ')
+            .toLowerCase()
+            .includes(q),
+        )
+      : articles
+    return sortBooks(filtered, sort)
+  }, [articles, query, sort])
+
   async function onFiles(files: FileList | null) {
     if (!files?.length) return
     setImporting(true)
     try {
       const { importFiles } = await import('../lib/importBook')
-      const { added, skipped } = await importFiles(files)
-      if (added.length) toast(added.length === 1 ? `Added “${added[0].title}”` : `Added ${added.length} books`)
+      if (shelf === 'articles') toast('Looking up paper details…')
+      const { added, skipped } = await importFiles(files, undefined, { kind: shelf === 'articles' ? 'article' : 'book' })
+      const noun = shelf === 'articles' ? 'articles' : 'books'
+      if (added.length) toast(added.length === 1 ? `Added “${added[0].title}”` : `Added ${added.length} ${noun}`)
       if (skipped.length) toast(`Skipped ${skipped.length} unsupported file${skipped.length > 1 ? 's' : ''}`)
     } catch (e) {
       toast('Could not import that file')
@@ -81,23 +117,50 @@ export default function Library() {
       <input ref={fileInput} type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" multiple hidden onChange={(e) => onFiles(e.target.files)} />
 
       <div className="nav-row">
-        {!!books?.length && (
+        {!!everything?.length && (
           <button className="icon-btn filled" onClick={() => navigate('/search')} aria-label="Search inside books">
             <Icon name="search" size={18} stroke={2.2} />
           </button>
         )}
-        {!!books?.length && (
+        {!!everything?.length && (
           <button className="icon-btn filled" onClick={() => setSortOpen(true)} aria-label="Sort">
             <Icon name="sort" size={18} stroke={2} />
           </button>
         )}
-        <button className="icon-btn filled" onClick={pickFiles} aria-label="Import books" disabled={importing}>
+        <button className="icon-btn filled" onClick={pickFiles} aria-label={shelf === 'articles' ? 'Import articles' : 'Import books'} disabled={importing}>
           <Icon name="plus" size={18} stroke={2.4} />
         </button>
       </div>
       <h1 className="large-title">Library</h1>
+      <div className="shelf-switch">
+        <Segmented
+          value={shelf}
+          options={[
+            { value: 'books', label: `Books${books?.length ? ` · ${books.length}` : ''}` },
+            { value: 'articles', label: `Articles${articles?.length ? ` · ${articles.length}` : ''}` },
+          ]}
+          onChange={setShelf}
+        />
+      </div>
 
-      {books && books.length === 0 && (
+      {shelf === 'articles' && articles && (
+        <>
+          {articles.length > 0 && (
+            <label className="search-field">
+              <Icon name="search" size={17} stroke={2} />
+              <input
+                type="search"
+                placeholder="Search titles, authors, journals"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+          )}
+          <ArticleList articles={visibleArticles} progress={progress} onImport={pickFiles} importing={importing} query={query} />
+        </>
+      )}
+
+      {shelf === 'books' && books && books.length === 0 && (
         <div className="empty-state">
           <EmptyIllustration />
           <h2>Your library is empty</h2>
@@ -111,13 +174,13 @@ export default function Library() {
           </p>
         </div>
       )}
-      {books && books.length === 0 && (
+      {shelf === 'books' && books && books.length === 0 && (
         <div style={{ marginTop: 32 }}>
           <ClassicsShelf />
         </div>
       )}
 
-      {!!books?.length && (
+      {shelf === 'books' && !!books?.length && (
         <>
           <label className="search-field">
             <Icon name="search" size={17} stroke={2} />
@@ -156,7 +219,7 @@ export default function Library() {
         </>
       )}
 
-      {!!books?.length && !query && <ClassicsShelf />}
+      {shelf === 'books' && !!books?.length && !query && <ClassicsShelf />}
 
       {importing && <div className="toast">Importing…</div>}
 

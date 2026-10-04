@@ -3,6 +3,8 @@ import { coverFields, db, type Book, type BookFormat } from './db'
 import { openPdf } from './pdf'
 import { backupBook } from './sync'
 import { classicCover, type Classic } from './classics'
+import { findIdentifier, firstPagesText, lookupArticle } from './articles'
+import type { ArticleMeta } from './db'
 
 export const ACCEPT = '.pdf,.epub,application/pdf,application/epub+zip'
 
@@ -60,7 +62,9 @@ async function readPdfMeta(buf: ArrayBuffer) {
 export async function importFiles(
   files: FileList | File[],
   names?: { title: string; author: string; cover?: Blob },
+  opts: { kind?: 'book' | 'article' } = {},
 ) {
+  const kind = opts.kind ?? 'book'
   const added: Book[] = []
   const skipped: string[] = []
   for (const file of Array.from(files)) {
@@ -76,10 +80,46 @@ export async function importFiles(
     } catch (e) {
       console.warn('metadata failed', file.name, e)
     }
+    // Papers: find the DOI/arXiv id and fetch title, authors, journal, year and abstract.
+    let article: (ArticleMeta & { title?: string }) | undefined
+    let pageTitle = ''
+    let pageByline = ''
+    if (kind === 'article' && format === 'pdf') {
+      try {
+        const doc = await openPdf(buf.slice(0))
+        try {
+          const { text, title, byline } = await firstPagesText(doc)
+          pageTitle = title
+          pageByline = byline
+          const id = findIdentifier(text)
+          article = (id && (await lookupArticle(id))) || (id ? { doi: id } : {})
+        } finally {
+          await doc.close()
+        }
+      } catch (e) {
+        console.warn('article lookup failed', e)
+      }
+    }
+    // PDF "Title" metadata in papers is often junk ("Microsoft Word - final2.docx").
+    const pdfTitle = meta.title?.trim()
+    const usablePdfTitle = pdfTitle && !/\.(docx?|tex|pdf)$|^untitled$|^microsoft word/i.test(pdfTitle) ? pdfTitle : ''
     const book: Book = {
       id: crypto.randomUUID(),
-      title: names?.title || meta.title?.trim() || titleFromFilename(file.name),
-      author: names?.author ?? (meta.author?.trim() || ''),
+      title:
+        names?.title ||
+        article?.title ||
+        (kind === 'article' ? pageTitle || usablePdfTitle : usablePdfTitle) ||
+        titleFromFilename(file.name),
+      author:
+        names?.author ??
+        (article?.authors?.length ? article.authors.join(', ') : meta.author?.trim() || pageByline || ''),
+      kind,
+      ...(kind === 'article'
+        ? {
+            pdfView: 'pages' as const, // figures, equations and two-column layouts read best as printed
+            article: (({ title: _t, ...rest }) => rest)(article ?? {}),
+          }
+        : {}),
       format,
       sizeBytes: file.size,
       totalPages: meta.pages,

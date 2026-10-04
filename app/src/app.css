@@ -1329,3 +1329,121 @@ mark {
 .classic-detail .btn {
   margin-top: 10px;
 }
+
+/* ---------- articles ---------- */
+.shelf-switch {
+  margin: 2px var(--gutter) 12px;
+}
+.article-list {
+  margin: 4px var(--gutter) 16px;
+  border-radius: var(--radius);
+  background: var(--bg-grouped);
+  overflow: hidden;
+}
+.article-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 10px 14px 14px;
+}
+.article-row + .article-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 80px;
+  height: 0.5px;
+  background: var(--separator);
+}
+.article-thumb {
+  flex: none;
+}
+.article-thumb .cover {
+  border-radius: 3px;
+}
+.article-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.article-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.28;
+  letter-spacing: -0.2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.article-authors {
+  font-size: 13px;
+  color: var(--label-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.article-source {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--label-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.article-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--label-2);
+}
+.article-hl {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+}
+.abstract {
+  margin: 0 var(--gutter) 24px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--bg-grouped);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.abstract h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--label-2);
+}
+.abstract p {
+  margin: 0;
+}
+.abstract.clamped p {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.detail-source {
+  margin: 2px 0 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--label-2);
+}

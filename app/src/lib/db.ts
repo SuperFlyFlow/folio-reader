@@ -23,6 +23,18 @@ export interface Book {
   hasFile: boolean
   /** PDFs only: read as reflowed text (default) or as the original pages */
   pdfView?: 'text' | 'pages'
+  /** 'article' for journal articles and papers (shown in Library → Articles) */
+  kind?: 'book' | 'article'
+  article?: ArticleMeta
+}
+
+export interface ArticleMeta {
+  doi?: string
+  journal?: string
+  year?: number
+  authors?: string[]
+  abstract?: string
+  url?: string
 }
 
 export interface BookFile {

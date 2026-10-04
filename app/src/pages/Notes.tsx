@@ -12,7 +12,7 @@ export default function Notes() {
   const [params, setParams] = useSearchParams()
   const bookFilter = params.get('book')
   const typeFilter = params.get('type') === 'bookmark' ? 'bookmark' : 'highlights'
-  const [view, setView] = useState<'all' | 'book'>('all')
+  const [view, setView] = useState<'all' | 'book' | 'articles'>('all')
   const [query, setQuery] = useState('')
 
   const books = useLiveQuery(async () => new Map((await db.books.toArray()).map((b) => [b.id, b])), [])
@@ -29,6 +29,7 @@ export default function Notes() {
   const filtered = useMemo(() => {
     let list = notes ?? []
     if (bookFilter) list = list.filter((a) => a.bookId === bookFilter)
+    else if (view === 'articles') list = list.filter((a) => books?.get(a.bookId)?.kind === 'article')
     const q = query.trim().toLowerCase()
     if (q) {
       list = list.filter((a) =>
@@ -36,7 +37,7 @@ export default function Notes() {
       )
     }
     return list
-  }, [notes, bookFilter, query, books])
+  }, [notes, bookFilter, query, books, view])
 
   const grouped = useMemo(() => {
     const m = new Map<string, Annotation[]>()
@@ -90,6 +91,7 @@ export default function Notes() {
             options={[
               { value: 'all', label: 'All' },
               { value: 'book', label: 'By Book' },
+              { value: 'articles', label: 'Articles' },
             ]}
             onChange={setView}
           />
